@@ -1,0 +1,30 @@
+[project]
+name = "kuza-identify-backend"
+version = "0.1.0"
+description = "Kuza Connect — Layer 1 identification engine (Phase 0 MVP)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.115.5",
+    "uvicorn[standard]==0.32.1",
+    "sqlalchemy==2.0.36",
+    "psycopg[binary]==3.2.3",
+    "alembic==1.14.0",
+    "pydantic==2.10.3",
+    "pydantic-settings==2.6.1",
+    "anthropic==0.40.0",
+    "openpyxl==3.1.5",
+    "python-multipart==0.0.19",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+    "httpx==0.28.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

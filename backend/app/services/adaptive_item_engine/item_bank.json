@@ -1,0 +1,67 @@
+{
+  "_README": "PLACEHOLDER ITEM BANK — replace with the real prototype 5-item / 5-domain set. This file is the ONLY thing to swap; the engine, gateway and scorer read it generically. Each item is bilingual (en/sw, Section 7) and phrased to degrade to plain text so it works on USSD too (Section 3.4). Open-ended items feed the LLM Scoring Service (Section 3.3); their `expected_reasoning` is guidance for the scorer, never shown to the child.",
+  "domains": [
+    "numerical_reasoning",
+    "verbal_reasoning",
+    "pattern_recognition",
+    "logical_reasoning",
+    "working_memory"
+  ],
+  "items": [
+    {
+      "id": "num-01",
+      "domain": "numerical_reasoning",
+      "difficulty": 3,
+      "type": "open_ended",
+      "prompt": {
+        "en": "A shopkeeper buys 12 oranges for 60 shillings and sells them for 8 shillings each. How much profit does she make, and how did you work it out?",
+        "sw": "Mwuzaji ananunua machungwa 12 kwa shilingi 60 na anauza kila moja kwa shilingi 8. Anapata faida kiasi gani, na ulifikiaje jibu hilo?"
+      },
+      "expected_reasoning": "Cost 60, revenue 12*8=96, profit 36. Credit correct method even if arithmetic slips; note whether the child shows the per-unit vs total reasoning."
+    },
+    {
+      "id": "vrb-01",
+      "domain": "verbal_reasoning",
+      "difficulty": 3,
+      "type": "open_ended",
+      "prompt": {
+        "en": "Finish this sentence in your own words and explain why: 'Rain is to farmer as ____ is to fisherman.'",
+        "sw": "Maliza sentensi hii kwa maneno yako na ueleze sababu: 'Mvua ni kwa mkulima kama ____ ilivyo kwa mvuvi.'"
+      },
+      "expected_reasoning": "Looking for an analogy that maps a needed condition (e.g. rain->good weather/calm water/fish). Score the quality of the mapping and the explanation, not the exact word."
+    },
+    {
+      "id": "pat-01",
+      "domain": "pattern_recognition",
+      "difficulty": 4,
+      "type": "open_ended",
+      "prompt": {
+        "en": "What number comes next: 2, 6, 12, 20, 30, ___ ? Tell me the rule you found.",
+        "sw": "Ni nambari gani inayofuata: 2, 6, 12, 20, 30, ___ ? Nieleze kanuni uliyoipata."
+      },
+      "expected_reasoning": "Differences 4,6,8,10 -> next diff 12 -> 42. Reward articulating the growing-difference rule even if final number is off."
+    },
+    {
+      "id": "log-01",
+      "domain": "logical_reasoning",
+      "difficulty": 4,
+      "type": "open_ended",
+      "prompt": {
+        "en": "All the children who passed the test studied. Amina did not study. Can we be sure Amina failed? Explain your answer.",
+        "sw": "Watoto wote waliofaulu mtihani walisoma. Amina hakusoma. Je, tunaweza kuwa na uhakika kwamba Amina alishindwa? Eleza jibu lako."
+      },
+      "expected_reasoning": "Logically we cannot be certain: studying is necessary-for-passing only as stated ('all who passed studied' => not studying implies not passing). Actually this DOES imply Amina failed. Score whether the child reasons about the conditional correctly; strongest answers notice the direction of implication."
+    },
+    {
+      "id": "wmm-01",
+      "domain": "working_memory",
+      "difficulty": 2,
+      "type": "open_ended",
+      "prompt": {
+        "en": "Read this list once: mango, chair, river, seven, blue. Now, without looking back, write them in reverse order and tell me any trick you used to remember.",
+        "sw": "Soma orodha hii mara moja: embe, kiti, mto, saba, bluu. Sasa, bila kuangalia nyuma, ziandike kwa mpangilio wa kinyume na unieleze mbinu uliyotumia kukumbuka."
+      },
+      "expected_reasoning": "Score recall accuracy and, more importantly, any strategy described (chunking, story, visualisation) — strategy use is a stronger giftedness signal than raw recall."
+    }
+  ]
+}

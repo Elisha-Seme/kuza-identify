@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+dashboard/dist/
+
+# Env / secrets
+.env
+*.local
+
+# OS
+.DS_Store
+
+# TS build info
+*.tsbuildinfo

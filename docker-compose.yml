@@ -1,0 +1,50 @@
+# Local development stack for Kuza Connect — Layer 1 (Phase 0 MVP).
+#   docker compose up --build            # start db + api + dashboard
+#   docker compose run --rm api python -m app.cli.seed          # seed demo data
+#   docker compose run --rm api python -m app.cli.run_bias_audit
+# API:        http://localhost:8000  (docs at /docs)
+# Dashboard:  http://localhost:5173
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kuza
+      POSTGRES_PASSWORD: kuza
+      POSTGRES_DB: kuza
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kuza"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://kuza:kuza@db:5432/kuza
+      # LLM Scoring Service: set ANTHROPIC_API_KEY for the real Claude integration.
+      # Left unset -> the deterministic mock scorer runs so the stack works offline.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      SCORING_MODEL: ${SCORING_MODEL:-claude-haiku-4-5}
+      WHATSAPP_PROVIDER: mock
+      CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+
+  dashboard:
+    build: ./dashboard
+    depends_on:
+      - api
+    environment:
+      VITE_API_PROXY: http://api:8000
+    ports:
+      - "5173:5173"
+
+volumes:
+  pgdata:
