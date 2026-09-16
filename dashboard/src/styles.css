@@ -26,7 +26,10 @@ body {
 /* header */
 .topbar { padding: 20px 0 10px; }
 .brand { display: flex; align-items: center; gap: 16px; }
-.mascot { width: 60px; height: 60px; object-fit: contain; }
+.mascot { width: 64px; height: 64px; object-fit: contain; }
+.mascotimg { object-fit: contain; vertical-align: middle; }
+.abouthero { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.banner.withmascot { display: flex; align-items: center; gap: 12px; }
 .topbar h1 { margin: 0; font-size: 24px; color: var(--brand); }
 .tagline { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
 

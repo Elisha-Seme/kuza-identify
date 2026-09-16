@@ -15,6 +15,21 @@ import {
 
 type Tab = "review" | "nominate" | "questions" | "about";
 
+/** Mascot image with graceful fallback — hides itself if the file isn't present
+ * yet (drop PNGs into dashboard/public/: mascot.png, mascot-wave.png, mascot-thumb.png). */
+function Mascot({ src, size = 60, className = "" }: { src: string; size?: number; className?: string }) {
+  return (
+    <img
+      src={src}
+      alt=""
+      width={size}
+      height={size}
+      className={"mascotimg " + className}
+      onError={(e) => (e.currentTarget.style.display = "none")}
+    />
+  );
+}
+
 const DOMAIN_LABELS: Record<string, string> = {
   numerical_reasoning: "Numeracy",
   verbal_reasoning: "Verbal",
@@ -36,12 +51,7 @@ export function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <img
-            src="/mascot.png"
-            alt=""
-            className="mascot"
-            onError={(e) => ((e.currentTarget.style.display = "none"))}
-          />
+          <Mascot src="/mascot.png" size={64} className="mascot" />
           <div>
             <h1>Kuza Connect</h1>
             <p className="tagline">
@@ -342,7 +352,12 @@ function NominateTab() {
       </div>
 
       <button className="advance" disabled={!schoolId} onClick={submit}>Submit nomination</button>
-      {result && <div className="banner ok">{result}</div>}
+      {result && (
+        <div className="banner ok withmascot">
+          <Mascot src="/mascot-thumb.png" size={54} />
+          <span>{result}</span>
+        </div>
+      )}
       {error && <div className="error">{error}</div>}
     </div>
   );
@@ -378,6 +393,10 @@ function QuestionsTab() {
 function AboutTab() {
   return (
     <div className="formcard prose">
+      <div className="abouthero">
+        <Mascot src="/mascot-wave.png" size={96} />
+        <Mascot src="/mascot.png" size={96} />
+      </div>
       <h2>How Kuza Connect works</h2>
       <p><strong>The goal:</strong> find bright children in under-resourced Kenyan schools who normally
         get missed — especially “twice-exceptional” kids who are gifted <em>and</em> have something
