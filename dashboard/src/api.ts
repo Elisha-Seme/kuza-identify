@@ -24,6 +24,13 @@ export interface CandidateSignal {
   confidence: string;
 }
 
+export interface ReviewRow {
+  decision: string;
+  reviewer_id: string;
+  notes: string | null;
+  decided_at: string;
+}
+
 export interface FlaggedProfile {
   session_id: string;
   learner_id: string;
@@ -34,11 +41,39 @@ export interface FlaggedProfile {
   nomination_amber_flags: number;
   candidate_signals: CandidateSignal[];
   existing_decision: string | null;
+  language: string;
+  channel: string;
+  responses_count: number;
+  expected_items: number;
+  scored_live: boolean;
+  received_at: string | null;
+  review_history: ReviewRow[];
 }
 
 export async function listFlagged(): Promise<FlaggedProfile[]> {
   const r = await fetch(`${BASE}/panel/flagged`);
   if (!r.ok) throw new Error(`GET /panel/flagged -> ${r.status}`);
+  return r.json();
+}
+
+export interface Health {
+  status: string;
+  llm_scoring: string;
+  whatsapp_provider: string;
+}
+export async function getHealth(): Promise<Health> {
+  const r = await fetch(`${BASE}/health`);
+  if (!r.ok) throw new Error(`GET /health -> ${r.status}`);
+  return r.json();
+}
+
+export interface Metrics {
+  funnel: Record<string, number>;
+  slices: Record<string, Record<string, { sessions: number; flagged: number; advanced: number }>>;
+}
+export async function getMetrics(): Promise<Metrics> {
+  const r = await fetch(`${BASE}/panel/metrics`);
+  if (!r.ok) throw new Error(`GET /panel/metrics -> ${r.status}`);
   return r.json();
 }
 
@@ -97,7 +132,7 @@ export async function getNominationForm(): Promise<ChecklistItem[]> {
 export async function submitNomination(body: {
   school_id: string;
   nominator_role: "teacher" | "parent";
-  checklist_responses: Record<string, boolean>;
+  checklist_responses: Record<string, unknown>;
   gender?: string;
   cohort_id?: string;
   guardian_identifier?: string;

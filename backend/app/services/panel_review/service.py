@@ -13,21 +13,26 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import PanelDecision
 from app.models import (
     CandidateSignal,
     FlagEvent,
+    ItemResponse,
     Learner,
     NominationRecord,
     PanelReview,
+    School,
     ScreeningSession,
 )
 from app.services.aggregation_flag.engine import DomainProfileEntry, build_profile
 from app.services.decision_audit_log.service import log_event
 from app.services.nomination.form import count_amber_flags
+
+# Items in the current screener — used only to express completeness (answers/total).
+_EXPECTED_ITEMS = 5
 
 
 @dataclass
@@ -41,6 +46,14 @@ class FlaggedProfile:
     nomination_amber_flags: int
     candidate_signals: list[dict]
     existing_decision: str | None = field(default=None)
+    # --- read-only workflow/quality fields (no schema change) ----------------
+    language: str = "en"
+    channel: str = "whatsapp"
+    responses_count: int = 0
+    expected_items: int = _EXPECTED_ITEMS
+    scored_live: bool = False
+    received_at: str | None = None
+    review_history: list[dict] = field(default_factory=list)
 
 
 def list_flagged_sessions(db: Session) -> list[FlaggedProfile]:
@@ -87,23 +100,104 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
         )
     ]
 
-    existing = db.scalars(
-        select(PanelReview)
-        .where(PanelReview.session_id == session_id)
-        .order_by(PanelReview.decided_at.desc())
-    ).first()
+    reviews = list(
+        db.scalars(
+            select(PanelReview)
+            .where(PanelReview.session_id == session_id)
+            .order_by(PanelReview.decided_at.desc())
+        )
+    )
+    review_history = [
+        {
+            "decision": r.decision.value,
+            "reviewer_id": r.reviewer_id,
+            "notes": r.notes,
+            "decided_at": r.decided_at.isoformat(),
+        }
+        for r in reviews
+    ]
+
+    prof = build_profile(db, session_id)
+    responses_count = db.scalar(
+        select(func.count())
+        .select_from(ItemResponse)
+        .where(ItemResponse.session_id == session_id)
+    ) or 0
+    # "Live" if any domain was scored by a real model (not the mock fallback).
+    scored_live = any(
+        not e.scoring_model_version.startswith("mock")
+        and e.scoring_model_version != "seed-fixture"
+        for e in prof
+    )
 
     return FlaggedProfile(
         session_id=session_id,
         learner_id=learner.id,
         learner_source=learner.source.value,
         school_id=learner.school_id,
-        profile=build_profile(db, session_id),
+        profile=prof,
         flags=flags,
         nomination_amber_flags=amber,
         candidate_signals=signals,
-        existing_decision=existing.decision.value if existing else None,
+        existing_decision=reviews[0].decision.value if reviews else None,
+        language=session.language.value,
+        channel=session.channel.value,
+        responses_count=responses_count,
+        scored_live=scored_live,
+        received_at=session.started_at.isoformat() if session.started_at else None,
+        review_history=review_history,
     )
+
+
+def metrics(db: Session) -> dict:
+    """Read-only pilot funnel + fairness slices, derived from existing data.
+
+    Honest by construction: only counts things the system actually records. Deeper
+    fairness measures (reviewer agreement, false pos/neg) need labelled ground
+    truth and are intentionally NOT invented here.
+    """
+    total_sessions = db.scalar(select(func.count()).select_from(ScreeningSession)) or 0
+    flagged_ids = set(db.scalars(select(FlagEvent.session_id).distinct()))
+    reviewed_ids = set(db.scalars(select(PanelReview.session_id).distinct()))
+
+    def _decided(kind: PanelDecision) -> int:
+        return len(set(db.scalars(
+            select(PanelReview.session_id).where(PanelReview.decision == kind)
+        )))
+
+    funnel = {
+        "screened": total_sessions,
+        "flagged": len(flagged_ids),
+        "reviewed": len(reviewed_ids),
+        "advanced": _decided(PanelDecision.advance),
+        "held": _decided(PanelDecision.hold),
+        "declined": _decided(PanelDecision.decline),
+        "awaiting_review": len(flagged_ids - reviewed_ids),
+    }
+
+    advanced_ids = set(db.scalars(
+        select(PanelReview.session_id).where(PanelReview.decision == PanelDecision.advance)
+    ))
+
+    # Fairness slices: flag rate by pathway / school tier / language / gender.
+    slices: dict[str, dict] = {"pathway": {}, "school_tier": {}, "language": {}, "gender": {}}
+    for session in db.scalars(select(ScreeningSession)):
+        learner = db.get(Learner, session.learner_id)
+        school = db.get(School, learner.school_id) if learner else None
+        buckets = {
+            "pathway": learner.source.value if learner else "unknown",
+            "school_tier": school.tier if school else "unknown",
+            "language": session.language.value,
+            "gender": (learner.gender if learner and learner.gender else "unreported"),
+        }
+        for dim, key in buckets.items():
+            b = slices[dim].setdefault(key, {"sessions": 0, "flagged": 0, "advanced": 0})
+            b["sessions"] += 1
+            if session.id in flagged_ids:
+                b["flagged"] += 1
+            if session.id in advanced_ids:
+                b["advanced"] += 1
+    return {"funnel": funnel, "slices": slices}
 
 
 def record_decision(

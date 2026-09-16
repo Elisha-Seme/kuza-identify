@@ -33,6 +33,12 @@ def list_flagged(db: Session = Depends(get_db)):
     return [_profile_to_dict(p) for p in panel.list_flagged_sessions(db)]
 
 
+@router.get("/metrics", response_model=dict)
+def metrics(db: Session = Depends(get_db)):
+    """Read-only pilot funnel + fairness slices (no schema change, honest counts)."""
+    return panel.metrics(db)
+
+
 @router.get("/sessions/{session_id}", response_model=dict)
 def get_profile(session_id: uuid.UUID, db: Session = Depends(get_db)):
     return _profile_to_dict(panel.get_flagged_profile(db, session_id))
