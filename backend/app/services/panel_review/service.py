@@ -123,12 +123,9 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
         .select_from(ItemResponse)
         .where(ItemResponse.session_id == session_id)
     ) or 0
-    # "Live" if any domain was scored by a real model (not the mock fallback).
-    scored_live = any(
-        not e.scoring_model_version.startswith("mock")
-        and e.scoring_model_version != "seed-fixture"
-        for e in prof
-    )
+    # "Live" only if a real Claude model produced the score (ids start with
+    # "claude-"); demo/seed versions read as demo data.
+    scored_live = any(e.scoring_model_version.startswith("claude") for e in prof)
 
     return FlaggedProfile(
         session_id=session_id,

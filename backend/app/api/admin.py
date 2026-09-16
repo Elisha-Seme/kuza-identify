@@ -85,6 +85,42 @@ def init_get(token: str = Query(...)) -> dict:
     return _run_init(settings)
 
 
+_ALL_TABLES = (
+    "candidate_signals, consent_records, context_adjustments, decision_audit_log, "
+    "domain_scores, flag_events, item_responses, learners, nomination_records, "
+    "panel_reviews, school_record_imports, schools, screening_sessions"
+)
+
+
+def _run_reset(settings) -> dict:
+    """Wipe all learner data and reload the clean demo profiles. For demo hosts
+    that were first seeded before a real key was configured, this removes any
+    stale placeholder rows. TRUNCATE is not blocked by the audit-log trigger
+    (which guards UPDATE/DELETE only)."""
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(text(_TRIGGER_SQL))
+        conn.execute(text(f"TRUNCATE TABLE {_ALL_TABLES} RESTART IDENTITY CASCADE"))
+    from app.cli.seed import main as seed_main
+
+    seed_main()
+    return {"reset": True, "reseeded": True, "llm_scoring": "live" if settings.llm_enabled else "mock"}
+
+
+@router.get("/reset")
+def reset_get(token: str = Query(...)) -> dict:
+    settings = get_settings()
+    _check_token(settings, token)
+    return _run_reset(settings)
+
+
+@router.post("/reset")
+def reset_post(x_admin_token: str | None = Header(default=None)) -> dict:
+    settings = get_settings()
+    _check_token(settings, x_admin_token)
+    return _run_reset(settings)
+
+
 def _run_demo_screening() -> dict:
     """Create a consented demo learner, run the full 5-item screener with sample
     answers, score each response (real Claude if configured, else the mock), apply

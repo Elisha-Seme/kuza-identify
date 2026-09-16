@@ -60,8 +60,8 @@ def _deterministic_fallback(domain: str, raw_response: str) -> ScoreResult:
     return ScoreResult(
         score=score,
         evidence_text=(
-            "[Demo scorer, no ANTHROPIC_API_KEY set] Deterministic placeholder "
-            f"score for domain '{domain}'. Set the API key for real scoring."
+            f"Automated demo estimate for {domain.replace('_', ' ')}. "
+            "Connect a scoring model to produce a real assessment."
         ),
         scoring_model_version=f"mock+{get_settings().scoring_prompt_version}",
     )

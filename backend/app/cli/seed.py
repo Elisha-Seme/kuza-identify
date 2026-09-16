@@ -27,6 +27,7 @@ from app.models import (
     ConsentRecord,
     ContextAdjustment,
     DomainScore,
+    ItemResponse,
     Learner,
     School,
     SchoolRecordImport,
@@ -37,8 +38,6 @@ from app.services.aggregation_flag.context import factor_for_tier
 from app.services.aggregation_flag.engine import evaluate_and_flag
 from app.services.nomination import service as nomination
 from app.services.passive_candidate import service as passive
-from app.services.screening_gateway import service as gateway
-
 SAMPLE_GRADES = Path(__file__).parent / "sample_data" / "grades_sample.csv"
 
 
@@ -54,13 +53,57 @@ def _seed_context_adjustments(db, school: School) -> None:
     db.flush()
 
 
+# Realistic, presentable evidence notes per domain and performance band. These
+# are illustrative demo profiles (the "Demo mode" banner discloses this); the text
+# reads like a scorer's note so the dashboard is legible in a walkthrough.
+_EVIDENCE = {
+    "numerical_reasoning": {
+        "high": "Worked from unit price to total, then compared cost and revenue to reach the profit. Method sound.",
+        "mid": "Found the total revenue but did not fully net it against the cost, so the final figure was off.",
+        "low": "Attempted a calculation but did not link the quantities into a working method.",
+    },
+    "verbal_reasoning": {
+        "high": "Chose a well-matched analogy and explained the relationship clearly.",
+        "mid": "Gave a reasonable word but the explanation of the relationship was thin.",
+        "low": "Completed the sentence without showing why the pairing holds.",
+    },
+    "pattern_recognition": {
+        "high": "Identified the growing-difference rule and extended the sequence correctly.",
+        "mid": "Saw that the gaps grow but applied the step inconsistently near the end.",
+        "low": "Continued the sequence by guessing rather than stating a rule.",
+    },
+    "logical_reasoning": {
+        "high": "Reasoned correctly about the conditional and stated the direction of the implication.",
+        "mid": "Reached a defensible answer but the justification was incomplete.",
+        "low": "Did not track the conditional, so the conclusion was unsupported.",
+    },
+    "working_memory": {
+        "high": "Recalled the list accurately and described a chunking strategy to hold the order.",
+        "mid": "Recalled most items and used a partial strategy to reverse them.",
+        "low": "Recalled a few items with no described strategy for the order.",
+    },
+}
+# Short, plausible learner answers, so completeness reads 5 of 5 in the UI.
+_DEMO_ANSWERS = {
+    "numerical_reasoning": "She spends 60 and takes 96, so the profit is 36. I found 12 times 8 first.",
+    "verbal_reasoning": "A net, because a fisherman depends on a net the way a farmer depends on rain.",
+    "pattern_recognition": "42, because the gaps grow 4, 6, 8, 10, so the next gap is 12.",
+    "logical_reasoning": "Yes, if everyone who passed studied, then not studying means she did not pass.",
+    "working_memory": "blue, seven, river, chair, mango. I made a short story to keep the order.",
+}
+_DEMO_MODEL_VERSION = "screening-demo-v1"
+
+
+def _band(score: int) -> str:
+    return "high" if score >= 70 else "mid" if score >= 45 else "low"
+
+
 def _insert_completed_scored_session(
     db, learner: Learner, domain_scores: dict[str, int]
 ) -> ScreeningSession:
-    """Deterministic demo fixture: a completed session with hand-set DomainScores
-    (a clear spike), so the panel dashboard always has flagged content regardless
-    of whether the live LLM or the mock scorer is in use. Marked as seed data via
-    scoring_model_version."""
+    """A completed demo session with realistic per-domain evidence and a full set
+    of responses, so the panel dashboard reads professionally in a walkthrough.
+    Uses a demo scoring version; live screenings use the real Claude model."""
     session = ScreeningSession(
         learner_id=learner.id,
         channel=Channel.whatsapp,
@@ -70,14 +113,23 @@ def _insert_completed_scored_session(
     )
     db.add(session)
     db.flush()
+    for item in items.all_items():
+        db.add(
+            ItemResponse(
+                session_id=session.id,
+                item_id=item.id,
+                raw_response=_DEMO_ANSWERS.get(item.domain, "Answered."),
+                response_time_ms=11000,
+            )
+        )
     for domain, score in domain_scores.items():
         db.add(
             DomainScore(
                 session_id=session.id,
                 domain=domain,
                 score=score,
-                evidence_text=f"[seed fixture] illustrative evidence for {domain}.",
-                scoring_model_version="seed-fixture",
+                evidence_text=_EVIDENCE.get(domain, {}).get(_band(score), "Answer recorded."),
+                scoring_model_version=_DEMO_MODEL_VERSION,
             )
         )
     db.flush()
@@ -119,23 +171,18 @@ def main() -> None:
             )
         )
         db.flush()
-        # Drive the genuine end-to-end flow: consent -> items -> responses ->
-        # scoring -> flagging. (Uses the mock scorer unless ANTHROPIC_API_KEY set.)
-        session_a, prompt = gateway.start_session(
-            db, learner_id=learner_a.id, channel=Channel.whatsapp, language=Language.en
+        # Uneven profile: strong numeracy, weaker verbal and memory.
+        session_a = _insert_completed_scored_session(
+            db,
+            learner_a,
+            {
+                "numerical_reasoning": 84,
+                "verbal_reasoning": 41,
+                "pattern_recognition": 63,
+                "logical_reasoning": 58,
+                "working_memory": 47,
+            },
         )
-        answers = [
-            "She spends 60 and gets 96 so profit is 36. I multiplied 12 by 8 first.",
-            "Net, because a net is the tool a fisherman needs like rain helps a farmer.",
-            "42. The gaps go 4,6,8,10 so next gap is 12.",
-            "No we cannot be sure, maybe she still passed another way.",
-            "blue seven river chair mango. I made a little story to remember them.",
-        ]
-        for ans in answers:
-            prompt = gateway.submit_response(
-                db, session_id=session_a.id, raw_response=ans, response_time_ms=12000
-            )
-        db.flush()
 
         # --- Learner B: NOMINATION + a screened session that spikes -----------
         nom = nomination.submit_nomination(

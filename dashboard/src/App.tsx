@@ -260,7 +260,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
         <div className="quality">
           <span><Languages size={15} className="lic" /> Language: <b>{profile.language === "sw" ? "Kiswahili" : "English"}</b></span>
           <span>Answered: <b>{profile.responses_count} of {profile.expected_items}</b></span>
-          <span>Scored by: <b className={profile.scored_live ? "good" : "warn"}>{profile.scored_live ? "Live Claude" : "Demo scorer"}</b></span>
+          <span>Scored by: <b className={profile.scored_live ? "good" : "warn"}>{profile.scored_live ? "Live Claude" : "Demo data"}</b></span>
         </div>
         <p className="muted small" style={{ marginTop: 6 }}>What could change this assessment: a fuller session, a check in the other language, or a misread question. Scores rate reasoning, not correctness, so treat a single low score with care.</p>
       </section>
