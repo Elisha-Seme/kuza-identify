@@ -37,6 +37,24 @@ app.include_router(panel.router)
 app.include_router(admin.router)
 
 
+@app.get("/", tags=["meta"])
+def root() -> dict:
+    """Friendly landing so the base URL isn't a bare 404."""
+    return {
+        "service": "Kuza Connect — Layer 1 identification engine (Phase 0)",
+        "what": "Finds gifted learners (incl. twice-exceptional) via screening, "
+        "nomination and passive record-mining; AI flags, a human panel decides.",
+        "links": {
+            "interactive_api_docs": "/docs",
+            "health": "/health",
+            "screening_questions": "/screening/items",
+            "nomination_form": "/nomination/form",
+            "flagged_profiles": "/panel/flagged",
+            "dashboard": "https://kuza-identify-dashboard.vercel.app",
+        },
+    }
+
+
 @app.get("/health", tags=["meta"])
 def health() -> dict:
     return {

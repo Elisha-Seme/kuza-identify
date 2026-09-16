@@ -17,9 +17,25 @@ from app.schemas.api import (
     SubmitResponseRequest,
     WhatsAppWebhookPayload,
 )
+from app.services.adaptive_item_engine import engine as items
 from app.services.screening_gateway import service as gateway
 
 router = APIRouter(prefix="/screening", tags=["screening"])
+
+
+@router.get("/items", response_model=list[dict])
+def list_items():
+    """Public, read-only view of the screening item set (the 5 questions a child
+    answers). Excludes the internal scoring guidance (`expected_reasoning`)."""
+    return [
+        {
+            "id": i.id,
+            "domain": i.domain,
+            "difficulty": i.difficulty,
+            "prompt": i.prompt,
+        }
+        for i in items.all_items()
+    ]
 
 # In-memory phone -> session routing for the MOCK provider only. This is ephemeral
 # transport routing, not learner data; a real vendor carries its own conversation

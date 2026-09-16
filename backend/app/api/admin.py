@@ -83,3 +83,77 @@ def init_get(token: str = Query(...)) -> dict:
     settings = get_settings()
     _check_token(settings, token)
     return _run_init(settings)
+
+
+def _run_demo_screening() -> dict:
+    """Create a consented demo learner, run the full 5-item screener with sample
+    answers, score each response (real Claude if configured, else the mock), apply
+    the flag rules, and return the new session so it appears in the dashboard.
+
+    Token-guarded because each run costs real LLM calls when Claude is live.
+    """
+    from app.core.enums import Channel, ConsentScope, Language, LearnerSource
+    from app.models import ConsentRecord, FlagEvent, Learner, School
+    from app.services.screening_gateway import service as gateway
+
+    db = SessionLocal()
+    try:
+        school = db.scalar(select(School).limit(1))
+        if school is None:
+            school = School(name="Demo School", tier="low_resource", network="demo")
+            db.add(school)
+            db.flush()
+
+        learner = Learner(
+            school_id=school.id, cohort_id="demo", gender=None,
+            source=LearnerSource.active_screening,
+        )
+        db.add(learner)
+        db.flush()
+        db.add(ConsentRecord(
+            learner_id=learner.id, guardian_identifier="demo-guardian",
+            scope=ConsentScope.screening,
+        ))
+        db.flush()
+
+        session, _ = gateway.start_session(
+            db, learner_id=learner.id, channel=Channel.whatsapp, language=Language.en
+        )
+        # Deliberately uneven, articulate answers so the 2e spike pattern shows.
+        answers = [
+            "Cost is 60 and she sells for 96 so profit is 36. I did 12 times 8 first, then subtracted 60.",
+            "Net, because a net is what a fisherman depends on just like a farmer depends on rain.",
+            "42. The gaps are 4, 6, 8, 10, so the next gap is 12 and 30+12=42.",
+            "Yes, because the rule says everyone who passed had studied, so not studying means not passing.",
+            "blue, seven, river, chair, mango. I made a short story linking each word to remember the order.",
+        ]
+        for a in answers:
+            gateway.submit_response(
+                db, session_id=session.id, raw_response=a, response_time_ms=11000
+            )
+        db.commit()
+
+        flags = list(db.scalars(select(FlagEvent).where(FlagEvent.session_id == session.id)))
+        return {
+            "created_session_id": str(session.id),
+            "learner_id": str(learner.id),
+            "flags": [f.rule_id for f in flags],
+            "scored_by": get_settings().scoring_model if get_settings().llm_enabled else "mock",
+            "note": "Open the dashboard and Refresh to see this new profile.",
+        }
+    finally:
+        db.close()
+
+
+@router.get("/demo-screening")
+def demo_screening_get(token: str = Query(...)) -> dict:
+    settings = get_settings()
+    _check_token(settings, token)
+    return _run_demo_screening()
+
+
+@router.post("/demo-screening")
+def demo_screening_post(x_admin_token: str | None = Header(default=None)) -> dict:
+    settings = get_settings()
+    _check_token(settings, x_admin_token)
+    return _run_demo_screening()

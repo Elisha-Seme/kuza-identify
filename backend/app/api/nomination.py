@@ -4,7 +4,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from sqlalchemy import select
+
 from app.core.db import get_db
+from app.models import School
 from app.schemas.api import NominationRequest, NominationResponse
 from app.services.nomination import service as nomination
 from app.services.nomination.form import form_definition
@@ -16,6 +19,15 @@ router = APIRouter(prefix="/nomination", tags=["nomination"])
 def get_form():
     """The structured nomination checklist (incl. 2e amber-flag items)."""
     return form_definition()
+
+
+@router.get("/schools", response_model=list[dict])
+def list_schools(db: Session = Depends(get_db)):
+    """Schools available to nominate into (id, name, tier)."""
+    return [
+        {"id": str(s.id), "name": s.name, "tier": s.tier}
+        for s in db.scalars(select(School).order_by(School.name))
+    ]
 
 
 @router.post("", response_model=NominationResponse)
