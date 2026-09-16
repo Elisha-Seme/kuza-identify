@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BookOpen, Gavel, UserPlus, ListChecks, RotateCw, Play, TriangleAlert,
   ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck,
+  Calculator, Puzzle, Workflow, Brain,
 } from "lucide-react";
 import {
   ChecklistItem, FlaggedProfile, Health, Metrics, ScreeningItem, SchoolRow,
@@ -15,10 +16,14 @@ const DOMAIN_LABELS: Record<string, string> = {
   numerical_reasoning: "Numeracy", verbal_reasoning: "Verbal",
   pattern_recognition: "Patterns", logical_reasoning: "Logic", working_memory: "Memory",
 };
-const DOMAIN_SYM: Record<string, string> = {
-  numerical_reasoning: "calculate", verbal_reasoning: "translate",
-  pattern_recognition: "extension", logical_reasoning: "account_tree", working_memory: "memory",
+const DOMAIN_ICON: Record<string, typeof BookOpen> = {
+  numerical_reasoning: Calculator, verbal_reasoning: Languages,
+  pattern_recognition: Puzzle, logical_reasoning: Workflow, working_memory: Brain,
 };
+function DIcon({ domain, size = 18 }: { domain: string; size?: number }) {
+  const I = DOMAIN_ICON[domain] || Brain;
+  return <I size={size} className="lic" />;
+}
 const SOURCE_LABELS: Record<string, string> = {
   active_screening: "Screening response",
   nomination: "Teacher or parent nomination",
@@ -36,9 +41,6 @@ function statusOf(p: FlaggedProfile): "awaiting" | "advanced" | "held" | "declin
   return (p.existing_decision as any) || "awaiting";
 }
 
-function Sym({ name, size = 20 }: { name: string; size?: number }) {
-  return <span className="msym" style={{ fontSize: size }} aria-hidden>{name}</span>;
-}
 function Mascot({ src, size = 56, float = false }: { src: string; size?: number; float?: boolean }) {
   return (
     <img src={src} alt="" width={size} height={size}
@@ -284,7 +286,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
           {profile.profile.map((d) => (
             <div className="scorerow" key={d.domain}>
               <div className="scorehead">
-                <span className="name"><Sym name={DOMAIN_SYM[d.domain] || "psychology"} size={18} />{DOMAIN_LABELS[d.domain] ?? d.domain}</span>
+                <span className="name"><DIcon domain={d.domain} size={18} />{DOMAIN_LABELS[d.domain] ?? d.domain}</span>
                 <span className="nums">raw <b>{d.raw_score}</b> · factor {d.adjustment_factor.toFixed(2)} · <span className="adj">{d.adjusted_score}</span></span>
               </div>
               <div className="scoreev">{d.evidence_text}</div>
@@ -453,7 +455,7 @@ function QuestionsTab() {
         <ol className="questions">
           {items.map((it) => (
             <li key={it.id} className="qitem">
-              <span className="qdomain"><Sym name={DOMAIN_SYM[it.domain] || "psychology"} size={18} />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
+              <span className="qdomain"><DIcon domain={it.domain} size={18} />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
               <p className="qen">{it.prompt.en}</p>
               <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
             </li>
@@ -474,49 +476,61 @@ function AboutTab() {
       <div className="abouthero"><Mascot src="/mascot-wave.png" size={84} float /><Mascot src="/mascot.png" size={84} /></div>
       <h2>How Kuza Connect works</h2>
 
-      <h3>The problem</h3>
-      <p>In under-resourced Kenyan schools, capable learners are routinely missed. This is most true for twice-exceptional children, who are gifted and also face a challenge such as ADHD or dyslexia, so they read as average. Timed, single-score tests hide the learners we most want to find.</p>
-
-      <h3>What exists today (Phase 0 pilot)</h3>
-      <p>A narrow, human-supervised slice: structured screening, teacher or parent nomination, context-adjusted spike-based scoring, and a review panel where a person decides on every flag. There is no automated diagnosis or placement. It currently runs on demo data, and the WhatsApp channel is in demo mode until a real provider is connected.</p>
-
-      <h3>Three ways a child is found</h3>
-      <ul>
-        <li><b>Screening response.</b> The child answers five reasoning questions.</li>
-        <li><b>Teacher or parent nomination.</b> A structured referral form.</li>
-        <li><b>School-records signal.</b> A background job spots uneven grade patterns (spreadsheet only, no OCR yet).</li>
-      </ul>
-
-      <h3>The five reasoning domains</h3>
-      <ul className="domainlist">
-        {Object.entries(DOMAIN_LABELS).map(([k, v]) => (
-          <li key={k}><Sym name={DOMAIN_SYM[k]} size={20} />{v}</li>
-        ))}
-      </ul>
-
-      <h3>How Claude scoring works</h3>
-      <p>Claude reads each open-ended answer and rates the reasoning from 0 to 100, with a short written evidence note, in English or Kiswahili. It scores reasoning and gives evidence. It does not diagnose, label, or decide.</p>
-
-      <h3>Context adjustment, and no composite score</h3>
-      <p>Scores are adjusted against the school resource tier, so a learner is not judged against a richer school baseline. Domains are never collapsed into one number. The system flags on the highest single-domain score and on unevenness, which is what surfaces twice-exceptional profiles.</p>
-
-      <h3>Human review, audit, privacy</h3>
-      <p>The AI flags and explains. A person records Advance, Hold, or Decline (Hold and Decline require a reason). Every flag-to-decision path is written to an append-only audit log. The data model stores no name, no diagnosis, and no health field. Consent is captured before screening.</p>
-
-      <h3>What this system does not do</h3>
-      <ul className="donts">
-        <li>It does not diagnose ADHD, dyslexia, giftedness, or any medical condition.</li>
-        <li>It does not auto-advance, auto-place, or auto-enrol any child.</li>
-        <li>It does not compute a single combined score.</li>
-        <li>It does not store names or health data, or decide without a human.</li>
-      </ul>
-
-      <h3>Live capabilities and current limits</h3>
-      <div className="two">
-        <div><b>Live now</b>
-          <ul><li>Screening, Claude scoring, flags</li><li>Nomination form with 2e checklist</li><li>Human review, decisions, audit log</li><li>Context adjustment (tier lookup)</li><li>Records signal from spreadsheets</li></ul></div>
-        <div><b>Not yet</b>
-          <ul><li>Real WhatsApp (Twilio, demo only)</li><li>Trained context model (lookup only)</li><li>OCR of paper records</li><li>KEMIS or KNEC integration</li><li>Reviewer accounts and assignment</li></ul></div>
+      <div className="aboutflow">
+        <div className="abt">
+          <h3>The problem</h3>
+          <p>In under-resourced Kenyan schools, capable learners are routinely missed. This is most true for twice-exceptional children, who are gifted and also face a challenge such as ADHD or dyslexia, so they read as average. Timed, single-score tests hide the learners we most want to find.</p>
+        </div>
+        <div className="abt">
+          <h3>What exists today (Phase 0 pilot)</h3>
+          <p>A narrow, human-supervised slice: structured screening, teacher or parent nomination, context-adjusted spike-based scoring, and a review panel where a person decides on every flag. There is no automated diagnosis or placement. It currently runs on demo data, and the WhatsApp channel is in demo mode until a real provider is connected.</p>
+        </div>
+        <div className="abt">
+          <h3>Three ways a child is found</h3>
+          <ul>
+            <li><b>Screening response.</b> The child answers five reasoning questions.</li>
+            <li><b>Teacher or parent nomination.</b> A structured referral form.</li>
+            <li><b>School-records signal.</b> A background job spots uneven grade patterns (spreadsheet only, no OCR yet).</li>
+          </ul>
+        </div>
+        <div className="abt">
+          <h3>The five reasoning domains</h3>
+          <ul className="domainlist">
+            {Object.entries(DOMAIN_LABELS).map(([k, v]) => (
+              <li key={k}><DIcon domain={k} size={20} />{v}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="abt">
+          <h3>How Claude scoring works</h3>
+          <p>Claude reads each open-ended answer and rates the reasoning from 0 to 100, with a short written evidence note, in English or Kiswahili. It scores reasoning and gives evidence. It does not diagnose, label, or decide.</p>
+        </div>
+        <div className="abt">
+          <h3>Context adjustment, and no composite score</h3>
+          <p>Scores are adjusted against the school resource tier, so a learner is not judged against a richer school baseline. Domains are never collapsed into one number. The system flags on the highest single-domain score and on unevenness, which is what surfaces twice-exceptional profiles.</p>
+        </div>
+        <div className="abt">
+          <h3>Human review, audit, privacy</h3>
+          <p>The AI flags and explains. A person records Advance, Hold, or Decline (Hold and Decline require a reason). Every flag-to-decision path is written to an append-only audit log. The data model stores no name, no diagnosis, and no health field. Consent is captured before screening.</p>
+        </div>
+        <div className="abt">
+          <h3>What this system does not do</h3>
+          <ul className="donts">
+            <li>It does not diagnose ADHD, dyslexia, giftedness, or any medical condition.</li>
+            <li>It does not auto-advance, auto-place, or auto-enrol any child.</li>
+            <li>It does not compute a single combined score.</li>
+            <li>It does not store names or health data, or decide without a human.</li>
+          </ul>
+        </div>
+        <div className="abt span">
+          <h3>Live capabilities and current limits</h3>
+          <div className="two">
+            <div><b>Live now</b>
+              <ul><li>Screening, Claude scoring, flags</li><li>Nomination form (2e checklist)</li><li>Human review and audit log</li><li>Context adjustment (tier lookup)</li><li>Records signal from spreadsheets</li></ul></div>
+            <div><b>Not yet</b>
+              <ul><li>Real WhatsApp (Twilio)</li><li>Trained context model</li><li>OCR of paper records</li><li>KEMIS or KNEC integration</li><li>Reviewer accounts</li></ul></div>
+          </div>
+        </div>
       </div>
 
       {m && (

@@ -39,7 +39,6 @@ h1, h2, h3, p, ul, ol { margin: 0; }
 a { color: var(--teal); }
 
 /* icon helpers */
-.msym { font-family: "Material Symbols Rounded"; line-height: 1; vertical-align: -0.24em; font-size: 20px; }
 .lic { vertical-align: -0.18em; flex: none; }
 .tabs button, .btn, button { font-family: inherit; }
 
@@ -204,14 +203,27 @@ textarea { min-height: 76px; resize: vertical; }
 .qsw { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: flex-start; }
 
 /* ---- about prose ---- */
-.prose { max-width: 74ch; }
+.prose { max-width: none; }
 .prose p, .prose li { font-size: 14px; line-height: 1.6; }
 .prose ul { padding-left: 18px; margin: 6px 0; }
+
+/* About narrative flows into columns on wider screens, so the card is wider and
+   shorter instead of one long column. Each block stays intact. */
+.aboutflow { margin: 4px 0 8px; }
+.aboutflow .abt { margin-bottom: 8px; break-inside: avoid; }
+.aboutflow .abt h3 { margin-top: 6px; }
+@media (min-width: 760px) {
+  .aboutflow { column-count: 2; column-gap: 36px; }
+}
+@media (min-width: 1120px) {
+  .aboutflow { column-count: 3; column-gap: 36px; }
+}
+.abt.span { column-span: all; }
+.abt.span .two { margin-top: 6px; }
 .abouthero { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
 .domainlist { list-style: none; padding: 0; display: grid; gap: 8px; grid-template-columns: 1fr; }
 @media (min-width: 520px) { .domainlist { grid-template-columns: 1fr 1fr; } }
 .domainlist li { display: flex; gap: 9px; align-items: center; font-size: 14px; }
-.domainlist .msym { color: var(--teal); }
 .donts li { margin: 3px 0; }
 
 /* honest counts: quiet inline table, not big stat tiles */

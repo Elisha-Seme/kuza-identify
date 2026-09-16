@@ -56,6 +56,25 @@ class FlaggedProfile:
     review_history: list[dict] = field(default_factory=list)
 
 
+def _clean(text: str | None) -> str:
+    """Sanitise text on read so the UI never shows legacy placeholder wording or
+    em dashes, even for rows written by an earlier build. Belt-and-braces with the
+    seed rewrite: guarantees a clean display without needing a database reset."""
+    if not text:
+        return text or ""
+    if (
+        "MOCK SCORER" in text
+        or "Deterministic placeholder" in text
+        or "seed fixture" in text.lower()
+    ):
+        return "Automated demo estimate. Connect a scoring model for a real assessment."
+    # Normalise em/en dashes to commas for legacy rows (avoid a space before the comma).
+    return (
+        text.replace(" — ", ", ").replace(" – ", ", ")
+        .replace("—", ",").replace("–", ",")
+    )
+
+
 def list_flagged_sessions(db: Session) -> list[FlaggedProfile]:
     """Every screening session that has at least one FlagEvent."""
     session_ids = list(
@@ -72,7 +91,7 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
         {
             "id": str(f.id),
             "rule_id": f.rule_id,
-            "rule_description": f.rule_description,
+            "rule_description": _clean(f.rule_description),
             "fired_at": f.fired_at.isoformat(),
         }
         for f in db.scalars(
@@ -92,7 +111,7 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
         {
             "id": str(s.id),
             "signal_type": s.signal_type.value,
-            "evidence_text": s.evidence_text,
+            "evidence_text": _clean(s.evidence_text),
             "confidence": s.confidence,
         }
         for s in db.scalars(
@@ -118,6 +137,8 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
     ]
 
     prof = build_profile(db, session_id)
+    for e in prof:  # sanitise legacy evidence text on read
+        e.evidence_text = _clean(e.evidence_text)
     responses_count = db.scalar(
         select(func.count())
         .select_from(ItemResponse)
