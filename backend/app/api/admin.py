@@ -10,7 +10,7 @@ route exists so a serverless host with no shell can reach the same state.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import func, select, text
 
 from app.core.config import get_settings
@@ -35,12 +35,7 @@ FOR EACH ROW EXECUTE FUNCTION kuza_reject_mutation();
 """
 
 
-@router.post("/init")
-def init(x_admin_token: str | None = Header(default=None)) -> dict:
-    settings = get_settings()
-    if not settings.admin_token or x_admin_token != settings.admin_token:
-        raise HTTPException(status_code=403, detail="bad or missing X-Admin-Token")
-
+def _run_init(settings) -> dict:
     # 1. Schema (models are the source of truth; matches the Alembic migrations).
     Base.metadata.create_all(engine)
 
@@ -67,3 +62,24 @@ def init(x_admin_token: str | None = Header(default=None)) -> dict:
         "seeded": seeded,
         "llm_scoring": "live" if settings.llm_enabled else "mock",
     }
+
+
+def _check_token(settings, token: str | None) -> None:
+    if not settings.admin_token or token != settings.admin_token:
+        raise HTTPException(status_code=403, detail="bad or missing admin token")
+
+
+@router.post("/init")
+def init_post(x_admin_token: str | None = Header(default=None)) -> dict:
+    settings = get_settings()
+    _check_token(settings, x_admin_token)
+    return _run_init(settings)
+
+
+@router.get("/init")
+def init_get(token: str = Query(...)) -> dict:
+    """Browser-clickable one-shot bootstrap. Same as POST /admin/init but the
+    token is passed as ?token= so it can be triggered from a URL bar once."""
+    settings = get_settings()
+    _check_token(settings, token)
+    return _run_init(settings)
