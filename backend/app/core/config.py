@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # --- App ----------------------------------------------------------------
     app_env: str = Field(default="local", alias="APP_ENV")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
+    # True on serverless hosts (Vercel) so the DB engine uses NullPool.
+    serverless: bool = Field(default=False, alias="SERVERLESS")
+    # Guards the one-shot /admin/init bootstrap endpoint (schema + seed).
+    admin_token: str | None = Field(default=None, alias="ADMIN_TOKEN")
 
     @property
     def llm_enabled(self) -> bool:

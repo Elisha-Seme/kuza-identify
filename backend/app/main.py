@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import nomination, panel, screening
+from app.api import admin, nomination, panel, screening
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -34,6 +34,7 @@ app.add_middleware(
 app.include_router(screening.router)
 app.include_router(nomination.router)
 app.include_router(panel.router)
+app.include_router(admin.router)
 
 
 @app.get("/health", tags=["meta"])
