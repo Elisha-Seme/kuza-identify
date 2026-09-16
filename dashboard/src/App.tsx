@@ -1,62 +1,48 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ChecklistItem,
-  FlaggedProfile,
-  Health,
-  Metrics,
-  ScreeningItem,
-  SchoolRow,
-  getHealth,
-  getMetrics,
-  getNominationForm,
-  listFlagged,
-  listItems,
-  listSchools,
-  recordDecision,
-  runDemoScreening,
-  submitNomination,
+  BookOpen, Gavel, UserPlus, ListChecks, RotateCw, Play, TriangleAlert,
+  ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck,
+} from "lucide-react";
+import {
+  ChecklistItem, FlaggedProfile, Health, Metrics, ScreeningItem, SchoolRow,
+  getHealth, getMetrics, getNominationForm, listFlagged, listItems, listSchools,
+  recordDecision, runDemoScreening, submitNomination,
 } from "./api";
 
 type Tab = "about" | "review" | "nominate" | "questions";
 
 const DOMAIN_LABELS: Record<string, string> = {
-  numerical_reasoning: "Numeracy",
-  verbal_reasoning: "Verbal",
-  pattern_recognition: "Patterns",
-  logical_reasoning: "Logic",
-  working_memory: "Memory",
+  numerical_reasoning: "Numeracy", verbal_reasoning: "Verbal",
+  pattern_recognition: "Patterns", logical_reasoning: "Logic", working_memory: "Memory",
 };
-
-// Clearer source labels (brief: replace "Did the screener" → "Screening response").
+const DOMAIN_SYM: Record<string, string> = {
+  numerical_reasoning: "calculate", verbal_reasoning: "translate",
+  pattern_recognition: "extension", logical_reasoning: "account_tree", working_memory: "memory",
+};
 const SOURCE_LABELS: Record<string, string> = {
   active_screening: "Screening response",
-  nomination: "Teacher/parent nomination",
+  nomination: "Teacher or parent nomination",
   passive_signal: "School-records signal",
 };
-
-const DECISION_HELP: Record<string, string> = {
-  advance:
-    "Advance — the child moves forward for support (mentor matching, Layer 2). Recorded permanently in the audit log.",
-  hold:
-    "Hold — no decision yet; the child stays in the queue pending more evidence or a second reviewer. A reason is required.",
-  decline:
-    "Decline — the child is not advanced from this screening. A reason is required. Reversible only by a later review.",
-};
-
-function statusOf(p: FlaggedProfile): "awaiting" | "advanced" | "held" | "declined" {
-  if (!p.existing_decision) return "awaiting";
-  return p.existing_decision as any;
-}
 const STATUS_LABELS: Record<string, string> = {
-  awaiting: "Awaiting review",
-  advanced: "Advanced",
-  held: "Held",
-  declined: "Declined",
+  awaiting: "Awaiting review", advanced: "Advanced", held: "Held", declined: "Declined",
 };
+const DECISION_HELP: Record<string, string> = {
+  advance: "Advance moves the learner forward for support (mentor matching). It is written to the audit log.",
+  hold: "Hold keeps the learner in the queue for more evidence or a second reviewer. A reason is required.",
+  decline: "Decline records that the learner is not advanced from this screening. A reason is required. It can be changed only by a later review.",
+};
+function statusOf(p: FlaggedProfile): "awaiting" | "advanced" | "held" | "declined" {
+  return (p.existing_decision as any) || "awaiting";
+}
 
-function Mascot({ src, size = 60, className = "" }: { src: string; size?: number; className?: string }) {
+function Sym({ name, size = 20 }: { name: string; size?: number }) {
+  return <span className="msym" style={{ fontSize: size }} aria-hidden>{name}</span>;
+}
+function Mascot({ src, size = 56, float = false }: { src: string; size?: number; float?: boolean }) {
   return (
-    <img src={src} alt="" width={size} height={size} className={"mascotimg " + className}
+    <img src={src} alt="" width={size} height={size}
+      className={"mascotimg" + (float ? " floaty" : "")}
       onError={(e) => (e.currentTarget.style.display = "none")} />
   );
 }
@@ -69,49 +55,49 @@ export function App() {
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealth(null));
     const on = () => setOffline(false), off = () => setOffline(true);
-    window.addEventListener("online", on);
-    window.addEventListener("offline", off);
+    window.addEventListener("online", on); window.addEventListener("offline", off);
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
-  const TABS: { id: Tab; label: string; purpose: string }[] = [
-    { id: "about", label: "💡 How it works", purpose: "Start here — what this pilot is" },
-    { id: "review", label: "🧑‍⚖️ Panel review", purpose: "Review flagged children & decide" },
-    { id: "nominate", label: "📋 Nominate a child", purpose: "Teacher / parent referral" },
-    { id: "questions", label: "❓ Screening questions", purpose: "The 5 questions a child answers" },
+  const TABS: { id: Tab; label: string; icon: ReactNode; purpose: string }[] = [
+    { id: "about", label: "How it works", icon: <BookOpen size={16} className="lic" />, purpose: "What this pilot does and how it works." },
+    { id: "review", label: "Panel review", icon: <Gavel size={16} className="lic" />, purpose: "Review flagged learners and record decisions." },
+    { id: "nominate", label: "Nominate", icon: <UserPlus size={16} className="lic" />, purpose: "Refer a learner for screening." },
+    { id: "questions", label: "Questions", icon: <ListChecks size={16} className="lic" />, purpose: "The five questions a learner answers." },
   ];
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <Mascot src="/mascot.png" size={64} className="mascot" />
+          <Mascot src="/mascot.png" size={52} />
           <div>
             <h1>Kuza Connect</h1>
-            <p className="tagline">Finding gifted learners who’d otherwise be missed — AI flags, a human decides.</p>
+            <p className="tagline">Gifted-learner identification for under-resourced schools. The system flags candidates. A reviewer decides every case.</p>
           </div>
         </div>
         {health && (
-          <div className={"provider " + (health.llm_scoring === "live" ? "live" : "mock")}>
-            Scoring: <strong>{health.llm_scoring === "live" ? "Live Claude" : "Mock (demo)"}</strong>
-            <span className="sep">·</span>
-            WhatsApp: <strong>{health.whatsapp_provider === "mock" ? "Mock (not connected)" : health.whatsapp_provider}</strong>
+          <div className="provider">
+            <span className="grp"><span className={"dot " + (health.llm_scoring === "live" ? "live" : "mock")} />
+              Scoring: <strong>{health.llm_scoring === "live" ? "Live Claude" : "Demo scorer"}</strong></span>
+            <span className="grp"><span className="dot mock" />
+              WhatsApp: <strong>{health.whatsapp_provider === "mock" ? "Not connected" : health.whatsapp_provider}</strong></span>
           </div>
         )}
       </header>
 
-      {offline && <div className="offline">You appear to be offline — showing what’s already loaded. Reconnect to refresh.</div>}
+      {offline && <div className="offline">You are offline. Showing what is already loaded. Reconnect to refresh.</div>}
 
-      <nav className="tabs">
+      <nav className="tabs" aria-label="Sections">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)} title={t.purpose}>
-            {t.label}
+          <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => setTab(t.id)}>
+            {t.icon}{t.label}
           </button>
         ))}
       </nav>
       <p className="tabpurpose">{TABS.find((t) => t.id === tab)?.purpose}</p>
 
-      <main className="content">
+      <main className="content" key={tab}>
         {tab === "about" && <AboutTab />}
         {tab === "review" && <ReviewTab health={health} />}
         {tab === "nominate" && <NominateTab />}
@@ -141,58 +127,51 @@ function ReviewTab({ health }: { health: Health | null }) {
 
   async function runDemo() {
     const token = localStorage.getItem("kuza_admin_token") ||
-      window.prompt("Enter the ADMIN_TOKEN to run a live demo screening:") || "";
+      window.prompt("Enter the admin token to run a live demo screening:") || "";
     if (!token) return;
     localStorage.setItem("kuza_admin_token", token);
-    setDemoMsg("Running a screening through the scorer…");
-    try { const r = await runDemoScreening(token); setDemoMsg(`New profile created (scored by ${r.scored_by}). Refreshed.`); await refresh(); }
+    setDemoMsg("Running a screening through the scorer.");
+    try { const r = await runDemoScreening(token); setDemoMsg("New profile created (scored by " + r.scored_by + "). Refreshed."); await refresh(); }
     catch (e) { setDemoMsg("Demo failed: " + String(e)); }
   }
 
-  const filtered = useMemo(() => {
-    if (!profiles) return [];
-    return profiles.filter((p) => {
-      if (statusFilter !== "all" && statusOf(p) !== statusFilter) return false;
-      if (sourceFilter !== "all" && p.learner_source !== sourceFilter) return false;
-      if (search && !p.learner_id.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [profiles, statusFilter, sourceFilter, search]);
-
+  const filtered = useMemo(() => (profiles || []).filter((p) => {
+    if (statusFilter !== "all" && statusOf(p) !== statusFilter) return false;
+    if (sourceFilter !== "all" && p.learner_source !== sourceFilter) return false;
+    if (search && !p.learner_id.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  }), [profiles, statusFilter, sourceFilter, search]);
   const current = filtered.find((p) => p.session_id === selected) || filtered[0];
 
   return (
     <div>
       <div className="rowbar">
-        <p className="lead">The operational queue: children the system flagged for a human to review. Filter, open one, read the evidence, then record a decision.</p>
+        <p className="lead">Learners the system flagged for review. Filter, open one, read the evidence, then record a decision.</p>
         <div className="controls">
-          Reviewer:&nbsp;<input value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} />
-          <button onClick={refresh}>Refresh</button>
-          <button className="ghost" onClick={runDemo}>▶ Run demo screening</button>
+          <span className="revfield">Reviewer <input value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} /></span>
+          <button onClick={refresh}><RotateCw size={15} className="lic" />Refresh</button>
+          <button onClick={runDemo}><Play size={15} className="lic" />Run demo screening</button>
         </div>
       </div>
+
       {health && health.whatsapp_provider === "mock" && (
-        <div className="banner warn">⚠️ Mock mode: no real WhatsApp provider is connected. Screening data here is demo/seed data.</div>
+        <div className="banner warn"><TriangleAlert size={16} className="lic" />
+          <span>Demo mode. No WhatsApp provider is connected, so this data is seed data.</span></div>
       )}
-      {demoMsg && <div className="banner">{demoMsg}</div>}
-      {error && <div className="error">Couldn’t reach the API: {error}</div>}
+      {demoMsg && <div className="banner info"><Info size={16} className="lic" /><span>{demoMsg}</span></div>}
+      {error && <div className="error">Could not reach the API. {error}</div>}
 
       <div className="filters">
         <label>Status
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="all">All</option>
-            <option value="awaiting">Awaiting review</option>
-            <option value="advanced">Advanced</option>
-            <option value="held">Held</option>
-            <option value="declined">Declined</option>
+            <option value="all">All</option><option value="awaiting">Awaiting review</option>
+            <option value="advanced">Advanced</option><option value="held">Held</option><option value="declined">Declined</option>
           </select>
         </label>
         <label>Source
           <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
-            <option value="all">All</option>
-            <option value="active_screening">Screening response</option>
-            <option value="nomination">Nomination</option>
-            <option value="passive_signal">Records signal</option>
+            <option value="all">All</option><option value="active_screening">Screening response</option>
+            <option value="nomination">Nomination</option><option value="passive_signal">Records signal</option>
           </select>
         </label>
         <label>Find learner (anonymised id)
@@ -201,30 +180,37 @@ function ReviewTab({ health }: { health: Health | null }) {
       </div>
 
       {profiles === null ? (
-        <div className="loading">Loading queue…</div>
+        <div className="loading">Loading queue.</div>
       ) : (
         <div className="split">
           <aside>
             <h3>Queue ({filtered.length})</h3>
-            {filtered.length === 0 && <p className="muted">No children match these filters.</p>}
-            <ul className="cards">
-              {filtered.map((p) => (
-                <li key={p.session_id} className={current?.session_id === p.session_id ? "active" : ""} onClick={() => setSelected(p.session_id)}>
-                  <div className="cardtop">
-                    <span className={`badge ${statusOf(p)}`}>{STATUS_LABELS[statusOf(p)]}</span>
-                    <span className={`pill ${p.learner_source}`}>{SOURCE_LABELS[p.learner_source] ?? p.learner_source}</span>
-                  </div>
-                  <div className="cardline">
-                    <code>{p.learner_id.slice(0, 8)}</code>
-                    <span className="muted">{p.flags.length} flag(s) · {p.received_at ? new Date(p.received_at).toLocaleDateString() : "—"}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {filtered.length === 0 ? (
+              <div className="emptybox"><Mascot src="/mascot.png" size={44} /><p>No learners match these filters.</p></div>
+            ) : (
+              <ul className="queue">
+                {filtered.map((p) => (
+                  <li key={p.session_id} className={current?.session_id === p.session_id ? "active" : ""}
+                    tabIndex={0} role="button"
+                    onClick={() => setSelected(p.session_id)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(p.session_id); } }}>
+                    <div className="cardtop">
+                      <span className={"badge " + statusOf(p)}>{STATUS_LABELS[statusOf(p)]}</span>
+                      <span className="source">{SOURCE_LABELS[p.learner_source] ?? p.learner_source}</span>
+                    </div>
+                    <div className="cardline">
+                      <code>{p.learner_id.slice(0, 8)}</code>
+                      <span className="muted">{p.flags.length} flag(s)</span>
+                      <span className="muted">{p.received_at ? new Date(p.received_at).toLocaleDateString() : ""}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </aside>
-          <section className="panelcard">
+          <section className="panel">
             {current ? <ProfileView key={current.session_id} profile={current} reviewerId={reviewerId} onDecided={refresh} />
-              : <p className="muted">No child selected.</p>}
+              : <p className="muted">No learner selected.</p>}
           </section>
         </div>
       )}
@@ -236,7 +222,7 @@ function plainSummary(p: FlaggedProfile): string {
   if (!p.profile.length) return "Flagged for review.";
   const top = [...p.profile].sort((a, b) => b.adjusted_score - a.adjusted_score)[0];
   const low = [...p.profile].sort((a, b) => a.adjusted_score - b.adjusted_score)[0];
-  return `Strongest in ${DOMAIN_LABELS[top.domain] ?? top.domain} (${top.adjusted_score}/100), weakest in ${DOMAIN_LABELS[low.domain] ?? low.domain} (${low.adjusted_score}/100) — an uneven profile worth a human look.`;
+  return `Strongest in ${DOMAIN_LABELS[top.domain] ?? top.domain} (${top.adjusted_score} of 100). Weakest in ${DOMAIN_LABELS[low.domain] ?? low.domain} (${low.adjusted_score} of 100). Uneven profile.`;
 }
 
 function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfile; reviewerId: string; onDecided: () => void; }) {
@@ -245,15 +231,13 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const completeness = `${profile.responses_count}/${profile.expected_items} answered`;
-
   async function confirm() {
     if (!pending) return;
     if ((pending === "hold" || pending === "decline") && notes.trim().length === 0) {
       setMsg("A written reason is required to Hold or Decline."); return;
     }
     setBusy(true); setMsg(null);
-    try { await recordDecision(profile.session_id, reviewerId, pending, notes); setMsg(`Recorded: ${pending}`); setPending(null); setNotes(""); onDecided(); }
+    try { await recordDecision(profile.session_id, reviewerId, pending, notes); setPending(null); setNotes(""); onDecided(); }
     catch (e) { setMsg(String(e)); }
     finally { setBusy(false); }
   }
@@ -261,96 +245,102 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
   return (
     <div>
       <div className="detailhead">
-        <h2>Child <code>{profile.learner_id.slice(0, 8)}</code></h2>
-        <span className={`badge ${statusOf(profile)}`}>{STATUS_LABELS[statusOf(profile)]}</span>
+        <h2>Learner <code>{profile.learner_id.slice(0, 8)}</code></h2>
+        <span className={"badge " + statusOf(profile)}>{STATUS_LABELS[statusOf(profile)]}</span>
       </div>
-      <p className="metaline">
-        <span className={`pill ${profile.learner_source}`}>{SOURCE_LABELS[profile.learner_source] ?? profile.learner_source}</span>
-        {" "}· Received {profile.received_at ? new Date(profile.received_at).toLocaleString() : "—"}
-        {" "}· Channel {profile.channel}
-      </p>
+      <div className="metaline">
+        <span className="source">{SOURCE_LABELS[profile.learner_source] ?? profile.learner_source}</span>
+        <span>Received {profile.received_at ? new Date(profile.received_at).toLocaleString() : "unknown"}</span>
+        <span>Channel {profile.channel}</span>
+      </div>
       <p className="summary">{plainSummary(profile)}</p>
 
       <section>
         <h3>Evidence quality</h3>
         <div className="quality">
-          <span>Language: <strong>{profile.language === "sw" ? "Kiswahili" : "English"}</strong></span>
-          <span>Completeness: <strong>{completeness}</strong></span>
-          <span>Scored by: <strong className={profile.scored_live ? "ok" : "warn"}>{profile.scored_live ? "Live Claude" : "Mock / seed"}</strong></span>
+          <span><Languages size={15} className="lic" /> Language: <b>{profile.language === "sw" ? "Kiswahili" : "English"}</b></span>
+          <span>Answered: <b>{profile.responses_count} of {profile.expected_items}</b></span>
+          <span>Scored by: <b className={profile.scored_live ? "good" : "warn"}>{profile.scored_live ? "Live Claude" : "Demo scorer"}</b></span>
         </div>
-        <p className="muted small">What could change this assessment: a fuller session, a second-language re-check, or a reviewer noticing a misread question. Scores rate <em>reasoning</em>, not correctness — treat a single low score cautiously.</p>
+        <p className="muted small" style={{ marginTop: 6 }}>What could change this assessment: a fuller session, a check in the other language, or a misread question. Scores rate reasoning, not correctness, so treat a single low score with care.</p>
       </section>
 
       <section>
         <h3>Why it was flagged</h3>
         {profile.flags.map((f) => (
           <div className="flag" key={f.id}>
-            <strong>{f.rule_id.includes("spike") ? "A standout spike in one skill" : "Very uneven across skills (a pattern that can indicate twice-exceptional — needs human review, not a diagnosis)"}</strong>
-            <div className="muted">{f.rule_description}</div>
+            <strong>{f.rule_id.includes("spike")
+              ? "A standout spike in one skill."
+              : "Very uneven across skills. This pattern can indicate twice-exceptional and needs human review, not a diagnosis."}</strong>
+            <div className="muted small">{f.rule_description}</div>
           </div>
         ))}
       </section>
 
       <section>
         <h3>Score in each thinking skill</h3>
-        <p className="muted small">Skills stay separate — there is no single combined score. “Adjusted” applies the school’s resource-tier factor for fairness.</p>
-        <div className="tablewrap">
-          <table>
-            <thead><tr><th>Skill</th><th>Raw</th><th>×Factor</th><th>Adjusted</th><th>What the scorer saw</th></tr></thead>
-            <tbody>
-              {profile.profile.map((d) => (
-                <tr key={d.domain}>
-                  <td>{DOMAIN_LABELS[d.domain] ?? d.domain}</td>
-                  <td>{d.raw_score}</td><td>{d.adjustment_factor.toFixed(2)}</td>
-                  <td><strong>{d.adjusted_score}</strong></td>
-                  <td className="evidence">{d.evidence_text}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <p className="muted small">Skills stay separate. There is no single combined score. The adjusted value applies the school resource-tier factor for fairness.</p>
+        <div className="scores">
+          {profile.profile.map((d) => (
+            <div className="scorerow" key={d.domain}>
+              <div className="scorehead">
+                <span className="name"><Sym name={DOMAIN_SYM[d.domain] || "psychology"} size={18} />{DOMAIN_LABELS[d.domain] ?? d.domain}</span>
+                <span className="nums">raw <b>{d.raw_score}</b> · factor {d.adjustment_factor.toFixed(2)} · <span className="adj">{d.adjusted_score}</span></span>
+              </div>
+              <div className="scoreev">{d.evidence_text}</div>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section className="two">
-        <div><h3>Nomination notes</h3><p>2e warning signs ticked: <strong>{profile.nomination_amber_flags}</strong> <span className="muted">(context, not a score)</span></p></div>
-        <div><h3>Records signal</h3>{profile.candidate_signals.length === 0 ? <p className="muted">None.</p> :
-          profile.candidate_signals.map((s) => <div key={s.id} className="muted">{s.signal_type} · {s.confidence} confidence (advisory only)</div>)}</div>
-      </section>
+      <div className="two">
+        <section style={{ margin: 0 }}>
+          <h3>Nomination notes</h3>
+          <p className="small">Twice-exceptional signs ticked: <b>{profile.nomination_amber_flags}</b> <span className="muted">(context, not a score)</span></p>
+        </section>
+        <section style={{ margin: 0 }}>
+          <h3>Records signal</h3>
+          {profile.candidate_signals.length === 0 ? <p className="muted small">None.</p> :
+            profile.candidate_signals.map((s) => <div key={s.id} className="muted small">{s.signal_type}, {s.confidence} confidence (advisory only)</div>)}
+        </section>
+      </div>
 
       {profile.review_history.length > 0 && (
         <section>
-          <h3>Decision history (audit)</h3>
+          <h3>Decision history</h3>
           <ul className="history">
             {profile.review_history.map((r, i) => (
-              <li key={i}><span className={`badge ${r.decision}`}>{r.decision}</span> by {r.reviewer_id} · {new Date(r.decided_at).toLocaleString()}{r.notes ? ` — “${r.notes}”` : ""}</li>
+              <li key={i}><span className={"badge " + r.decision}>{r.decision}</span>
+                <span className="muted small">{r.reviewer_id}, {new Date(r.decided_at).toLocaleString()}{r.notes ? ". " + r.notes : ""}</span></li>
             ))}
           </ul>
         </section>
       )}
 
-      <section className="decision">
-        <h3>Your decision</h3>
-        <div className="buttons">
-          <button disabled={busy} className="advance" onClick={() => { setPending("advance"); setMsg(null); }}>Advance ✓</button>
-          <button disabled={busy} className="hold" onClick={() => { setPending("hold"); setMsg(null); }}>Hold</button>
-          <button disabled={busy} className="decline" onClick={() => { setPending("decline"); setMsg(null); }}>Decline</button>
+      <section>
+        <h3>Record a decision</h3>
+        <div className="decisionbar">
+          <button className="advance" disabled={busy} onClick={() => { setPending("advance"); setMsg(null); }}><Check size={16} className="lic" />Advance</button>
+          <button className="hold" disabled={busy} onClick={() => { setPending("hold"); setMsg(null); }}><Pause size={16} className="lic" />Hold</button>
+          <button className="decline" disabled={busy} onClick={() => { setPending("decline"); setMsg(null); }}><X size={16} className="lic" />Decline</button>
         </div>
-        {msg && <p className="msg">{msg}</p>}
+        {msg && !pending && <p className="error" style={{ marginTop: 10 }}>{msg}</p>}
       </section>
 
       {pending && (
-        <div className="modalback" onClick={() => setPending(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirm: {pending}</h3>
-            <p>{DECISION_HELP[pending]}</p>
-            <label className="modallabel">Reason / notes {(pending === "hold" || pending === "decline") && <span className="req">(required)</span>}
-              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Why this decision?" />
-            </label>
-            <div className="buttons">
+        <div className="modalback" role="dialog" aria-modal="true" onClick={() => setPending(null)}>
+          <div className="modal reveal" onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ textTransform: "capitalize" }}>Confirm: {pending}</h2>
+            <p className="small" style={{ margin: "8px 0" }}>{DECISION_HELP[pending]}</p>
+            <div className="field">
+              <label>Reason or notes {(pending === "hold" || pending === "decline") && <span className="ext">(required)</span>}</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Why this decision?" autoFocus />
+            </div>
+            {msg && <p className="error">{msg}</p>}
+            <div className="decisionbar">
               <button className={pending} disabled={busy} onClick={confirm}>Confirm {pending}</button>
               <button onClick={() => setPending(null)}>Cancel</button>
             </div>
-            {msg && <p className="msg">{msg}</p>}
           </div>
         </div>
       )}
@@ -375,16 +365,14 @@ function NominateTab() {
   useEffect(() => {
     getNominationForm().then(setForm).catch((e) => setError(String(e)));
     listSchools().then((s) => { setSchools(s); if (s[0]) setSchoolId(s[0].id); }).catch(() => {});
-    try {
-      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
       if (d) { setAnswers(d.answers || {}); setObservation(d.observation || ""); setAgeRange(d.ageRange || ""); setRole(d.role || "teacher"); }
     } catch { /* ignore */ }
   }, []);
 
   function saveDraft() {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ answers, observation, ageRange, role }));
-    setError(null); setResult(null);
-    alert("Draft saved on this device — you can continue later.");
+    setError(null); setResult(null); alert("Draft saved on this device. You can continue later.");
   }
 
   async function submit() {
@@ -393,68 +381,58 @@ function NominateTab() {
     try {
       const r = await submitNomination({
         school_id: schoolId, nominator_role: role,
-        // Free-text observation + age range are stored inside the structured JSONB
-        // field — no schema change, still no free-form personal identifiers requested.
         checklist_responses: { ...answers, _observation: observation || undefined, _age_range: ageRange || undefined },
-        guardian_identifier: consent ? (role === "parent" ? "web-parent-consent" : "web-teacher-consent") : undefined,
+        guardian_identifier: role === "parent" ? "web-parent-consent" : "web-teacher-consent",
       });
       setResult({ id: r.nomination_id, amber: r.amber_flag_count });
-      setAnswers({}); setObservation(""); setAgeRange(""); setConsent(false);
-      localStorage.removeItem(DRAFT_KEY);
+      setAnswers({}); setObservation(""); setAgeRange(""); setConsent(false); localStorage.removeItem(DRAFT_KEY);
     } catch (e) { setError(String(e)); }
   }
 
   return (
     <div className="formcard">
       <h2>Nominate a child</h2>
-      <p className="lead">A teacher or parent flags a child who seems bright. ⚠️ marks “twice-exceptional” signs — gifted but also struggling in a way that hides it. This is a <em>referral for screening</em>, never a diagnosis.</p>
+      <p className="lead">A teacher or parent refers a learner who seems capable. Marked items are twice-exceptional signs (gifted, but also struggling in a way that hides it). This is a referral for screening, not a diagnosis.</p>
 
-      <div className="safeguard">
-        <strong>🛡️ Safeguarding & privacy:</strong> do not enter the child’s name or any medical information. Nominate only children you are responsible for or guardian to. A nomination invites the child to a short screening; a human panel reviews everything before any decision.
-      </div>
+      <div className="safeguard"><ShieldCheck size={18} className="lic" />
+        <span>Do not enter the learner’s name or any medical information. Refer only learners you teach or are guardian to. A referral invites the learner to a short screening. A human panel reviews everything before any decision.</span></div>
 
-      <label>School
+      <div className="field"><label>School
         <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
           {schools.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>)}
-        </select>
-      </label>
-      <label>I am a
+        </select></label></div>
+      <div className="field"><label>I am a
         <select value={role} onChange={(e) => setRole(e.target.value as any)}>
-          <option value="teacher">Teacher</option><option value="parent">Parent / guardian</option>
-        </select>
-      </label>
-      <label>Approximate class / age range (optional)
-        <input value={ageRange} onChange={(e) => setAgeRange(e.target.value)} placeholder="e.g. Grade 4, or ~9–10 years" />
-      </label>
+          <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
+        </select></label></div>
+      <div className="field"><label>Approximate class or age range (optional)
+        <input value={ageRange} onChange={(e) => setAgeRange(e.target.value)} placeholder="e.g. Grade 4, or about 9 to 10 years" /></label></div>
 
       <div className="checklist">
         {form.map((c) => (
           <label key={c.key} className={"check " + (c.amber_flag ? "amber" : "")}>
             <input type="checkbox" checked={!!answers[c.key]} onChange={(e) => setAnswers({ ...answers, [c.key]: e.target.checked })} />
-            <span>{c.amber_flag ? "⚠️ " : ""}{c.prompt_en}</span>
+            <span>{c.amber_flag && <TriangleAlert size={14} className="lic" style={{ color: "var(--amber)" }} />} {c.prompt_en}</span>
           </label>
         ))}
       </div>
 
-      <label>Anything you’ve observed (optional, no names)
-        <textarea value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="e.g. explains ideas to classmates but freezes on written tests" />
-      </label>
+      <div className="field"><label>Anything you have observed (optional, no names)
+        <textarea value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="e.g. explains ideas well aloud but freezes on written tests" /></label></div>
 
       <label className="consent">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
         <span>I confirm I have the appropriate consent to nominate this child for screening.</span>
       </label>
 
-      <div className="buttons">
-        <button className="advance" disabled={!schoolId || !consent} onClick={submit}>Submit nomination</button>
-        <button className="ghost" onClick={saveDraft}>Save draft</button>
+      <div className="decisionbar" style={{ marginTop: 16 }}>
+        <button className="advance" disabled={!schoolId || !consent} onClick={submit}><Check size={16} className="lic" />Submit nomination</button>
+        <button onClick={saveDraft}>Save draft</button>
       </div>
 
       {result && (
-        <div className="banner ok withmascot">
-          <Mascot src="/mascot-thumb.png" size={54} />
-          <span>Nomination saved. Twice-exceptional signs ticked: <strong>{result.amber}</strong>. Tracking ID: <code>{result.id.slice(0, 8)}</code>. The child now awaits screening before the panel records a decision.</span>
-        </div>
+        <div className="banner ok"><CircleCheck size={18} className="lic" />
+          <span>Nomination saved. Twice-exceptional signs ticked: <b>{result.amber}</b>. Tracking id <code>{result.id.slice(0, 8)}</code>. The learner now awaits screening before the panel records a decision.</span></div>
       )}
       {error && <div className="error">{error}</div>}
     </div>
@@ -469,15 +447,15 @@ function QuestionsTab() {
   return (
     <div className="formcard">
       <h2>The screening questions</h2>
-      <p className="lead">A child answers these five short questions — in real life over WhatsApp, in English or Kiswahili. There are no trick “right answers”: the scorer rewards the <em>reasoning</em> shown, not neat handwriting or perfect arithmetic.</p>
+      <p className="lead">A learner answers these five questions, over WhatsApp, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic.</p>
       {error && <div className="error">{error}</div>}
-      {items === null ? <div className="loading">Loading questions…</div> : (
+      {items === null ? <div className="loading">Loading questions.</div> : (
         <ol className="questions">
           {items.map((it) => (
-            <li key={it.id}>
-              <span className="pill neutral">{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
+            <li key={it.id} className="qitem">
+              <span className="qdomain"><Sym name={DOMAIN_SYM[it.domain] || "psychology"} size={18} />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
               <p className="qen">{it.prompt.en}</p>
-              <p className="qsw">🇰🇪 {it.prompt.sw}</p>
+              <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
             </li>
           ))}
         </ol>
@@ -493,87 +471,123 @@ function AboutTab() {
 
   return (
     <div className="formcard prose">
-      <div className="abouthero">
-        <Mascot src="/mascot-wave.png" size={92} />
-        <Mascot src="/mascot.png" size={92} />
-      </div>
+      <div className="abouthero"><Mascot src="/mascot-wave.png" size={84} float /><Mascot src="/mascot.png" size={84} /></div>
       <h2>How Kuza Connect works</h2>
 
       <h3>The problem</h3>
-      <p>In under-resourced Kenyan schools, capable learners are routinely missed — especially <strong>twice-exceptional</strong> children who are gifted <em>and</em> face a challenge like ADHD or dyslexia, so they read as “average.” Timed, single-score tests hide exactly the children we most want to find.</p>
+      <p>In under-resourced Kenyan schools, capable learners are routinely missed. This is most true for twice-exceptional children, who are gifted and also face a challenge such as ADHD or dyslexia, so they read as average. Timed, single-score tests hide the learners we most want to find.</p>
 
       <h3>What exists today (Phase 0 pilot)</h3>
-      <p>A narrow, human-supervised slice: structured <strong>screening</strong> + <strong>teacher/parent nomination</strong>, context-adjusted spike-based scoring, and a review panel where a person decides on <em>every</em> flag. No automated diagnosis or placement. Currently running with demo data; the WhatsApp channel is in <strong>mock mode</strong> until a real provider is connected.</p>
+      <p>A narrow, human-supervised slice: structured screening, teacher or parent nomination, context-adjusted spike-based scoring, and a review panel where a person decides on every flag. There is no automated diagnosis or placement. It currently runs on demo data, and the WhatsApp channel is in demo mode until a real provider is connected.</p>
 
       <h3>Three ways a child is found</h3>
       <ul>
-        <li><span className="pill active_screening">Screening response</span> the child answers 5 reasoning puzzles.</li>
-        <li><span className="pill nomination">Teacher/parent nomination</span> a structured referral form.</li>
-        <li><span className="pill passive_signal">School-records signal</span> a background job spots uneven grade patterns (spreadsheet only, no OCR yet).</li>
+        <li><b>Screening response.</b> The child answers five reasoning questions.</li>
+        <li><b>Teacher or parent nomination.</b> A structured referral form.</li>
+        <li><b>School-records signal.</b> A background job spots uneven grade patterns (spreadsheet only, no OCR yet).</li>
       </ul>
 
       <h3>The five reasoning domains</h3>
-      <p>Numeracy · Verbal · Patterns · Logic · Memory — scored <strong>independently</strong>.</p>
-
-      <h3>How Claude scoring works</h3>
-      <p>Claude reads each open-ended answer and rates the <strong>reasoning</strong> (0–100) with a short written <strong>evidence</strong> note, in English or Kiswahili. It scores reasoning and gives evidence — it does <strong>not</strong> diagnose, label, or decide.</p>
-
-      <h3>Context adjustment & no composite score</h3>
-      <p>Scores are adjusted against the school’s resource tier so a child isn’t judged against a richer school’s baseline. Domains are never collapsed into one number — the system flags on the <em>maximum</em> per-domain spike and on <em>unevenness</em>, which is what surfaces twice-exceptional profiles.</p>
-
-      <h3>Human review, audit, privacy</h3>
-      <p>AI only flags + explains; a human records <strong>Advance / Hold / Decline</strong> (Hold and Decline require a reason). Every flag→decision path is written to an <strong>append-only audit log</strong>. The data model stores <strong>no name, no diagnosis, no health field</strong>; consent is captured before screening.</p>
-
-      <h3>What this system explicitly does NOT do</h3>
-      <ul className="donts">
-        <li>It does <strong>not</strong> diagnose ADHD, dyslexia, giftedness, or any medical condition.</li>
-        <li>It does <strong>not</strong> auto-advance, auto-place, or auto-enrol any child.</li>
-        <li>It does <strong>not</strong> compute a single IQ-like composite score.</li>
-        <li>It does <strong>not</strong> store names or health data, or make decisions without a human.</li>
+      <ul className="domainlist">
+        {Object.entries(DOMAIN_LABELS).map(([k, v]) => (
+          <li key={k}><Sym name={DOMAIN_SYM[k]} size={20} />{v}</li>
+        ))}
       </ul>
 
-      <h3>Live capabilities vs limitations</h3>
+      <h3>How Claude scoring works</h3>
+      <p>Claude reads each open-ended answer and rates the reasoning from 0 to 100, with a short written evidence note, in English or Kiswahili. It scores reasoning and gives evidence. It does not diagnose, label, or decide.</p>
+
+      <h3>Context adjustment, and no composite score</h3>
+      <p>Scores are adjusted against the school resource tier, so a learner is not judged against a richer school baseline. Domains are never collapsed into one number. The system flags on the highest single-domain score and on unevenness, which is what surfaces twice-exceptional profiles.</p>
+
+      <h3>Human review, audit, privacy</h3>
+      <p>The AI flags and explains. A person records Advance, Hold, or Decline (Hold and Decline require a reason). Every flag-to-decision path is written to an append-only audit log. The data model stores no name, no diagnosis, and no health field. Consent is captured before screening.</p>
+
+      <h3>What this system does not do</h3>
+      <ul className="donts">
+        <li>It does not diagnose ADHD, dyslexia, giftedness, or any medical condition.</li>
+        <li>It does not auto-advance, auto-place, or auto-enrol any child.</li>
+        <li>It does not compute a single combined score.</li>
+        <li>It does not store names or health data, or decide without a human.</li>
+      </ul>
+
+      <h3>Live capabilities and current limits</h3>
       <div className="two">
-        <div><strong>Live now</strong>
-          <ul><li>Screening → Claude scoring → flags</li><li>Nomination form (2e checklist)</li><li>Human review + decisions + audit log</li><li>Context adjustment (tier lookup)</li><li>Records signal from spreadsheets</li></ul>
-        </div>
-        <div><strong>Not yet / limits</strong>
-          <ul><li>Real WhatsApp (mock only)</li><li>Trained context model (lookup only)</li><li>OCR of paper records</li><li>KEMIS / KNEC integration</li><li>Reviewer accounts & assignment</li></ul>
-        </div>
+        <div><b>Live now</b>
+          <ul><li>Screening, Claude scoring, flags</li><li>Nomination form with 2e checklist</li><li>Human review, decisions, audit log</li><li>Context adjustment (tier lookup)</li><li>Records signal from spreadsheets</li></ul></div>
+        <div><b>Not yet</b>
+          <ul><li>Real WhatsApp (Twilio, demo only)</li><li>Trained context model (lookup only)</li><li>OCR of paper records</li><li>KEMIS or KNEC integration</li><li>Reviewer accounts and assignment</li></ul></div>
       </div>
 
       {m && (
         <>
-          <h3>Live pilot numbers</h3>
-          <div className="stats">
-            {Object.entries(m.funnel).map(([k, v]) => (
-              <div className="stat" key={k}><div className="statv">{v}</div><div className="statk">{k.replace(/_/g, " ")}</div></div>
-            ))}
-          </div>
-          <p className="muted small">Flag rate by language: {Object.entries(m.slices.language || {}).map(([k, s]) => `${k} ${s.flagged}/${s.sessions}`).join(" · ") || "—"}. Deeper fairness (reviewer agreement, false pos/neg) needs labelled ground truth — a Phase-2 item, not invented here.</p>
+          <h3>Pilot counts (demo data)</h3>
+          <table className="counts">
+            <tbody>
+              {["screened", "flagged", "reviewed", "advanced", "held", "declined", "awaiting_review"].map((k) => (
+                <tr key={k}><th>{k.replace(/_/g, " ")}</th><td className="n">{m.funnel[k] ?? 0}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="muted small" style={{ marginTop: 6 }}>Deeper fairness measures (reviewer agreement, false positives and negatives) need labelled ground truth. They are a Phase 2 item and are not shown here to avoid implying data we do not have.</p>
         </>
       )}
 
-      <h3>What we can add next (roadmap)</h3>
-      <p className="muted small">Each item lists value · dependencies · risks · effort. “Effort” is rough: S/M/L. Items needing new providers or agreements are marked ⛔ external.</p>
-      <div className="tablewrap">
-        <table className="roadmap">
-          <thead><tr><th>Capability</th><th>Value</th><th>Needs</th><th>Risks</th><th>Effort</th></tr></thead>
-          <tbody>
-            <tr><td>Real WhatsApp ⛔</td><td>Reach real children in the field</td><td>Provider (Africa’s Talking/Twilio), WhatsApp Business number, template approval, secrets; backend provider adapter (already stubbed)</td><td>Delivery/consent handling, message costs, PII in transit</td><td>M</td></tr>
-            <tr><td>KEMIS data ⛔ (discovery)</td><td>Find never-nominated children from existing records</td><td><strong>First confirm the system & that an authorised API/route exists</strong> — data model, auth, consent basis, rate limits, MOU. No endpoint assumed. Interim: CSV/SFTP/manual import with audit logs via the existing adapter interface</td><td>No public write API today; legal/consent; re-encoding teacher bias</td><td>L</td></tr>
-            <tr><td>School/teacher accounts + roles</td><td>Real logins, scoped access</td><td>Auth system, users/roles tables, session mgmt</td><td>Access control, password/security</td><td>L</td></tr>
-            <tr><td>Reviewer queue: assignment + “In review”</td><td>Coordinate multiple reviewers</td><td>New status/assignment columns (beyond current schema), migration</td><td>Schema change vs. locked model</td><td>M</td></tr>
-            <tr><td>Fairness & calibration dashboards</td><td>Prove equity claim</td><td>Labelled ground truth, reviewer-agreement capture, more metrics</td><td>Misleading stats on tiny samples</td><td>M</td></tr>
-            <tr><td>Longitudinal support tracking</td><td>Follow outcomes over time</td><td>Outcome/follow-up tables, Layer-2 link</td><td>Long-term data governance</td><td>L</td></tr>
-            <tr><td>Human-reviewed model recalibration</td><td>Improve scoring from reviewer feedback</td><td>Feedback capture, prompt/version mgmt, eval set</td><td>Feedback loops encoding bias</td><td>M</td></tr>
-            <tr><td>Exports / reporting</td><td>Share de-identified stats with partners</td><td>Export endpoints, aggregation, redaction</td><td>Re-identification risk</td><td>S–M</td></tr>
-            <tr><td>Notifications & escalation</td><td>Timely reviewer action</td><td>Email/SMS integration, rules</td><td>Alert fatigue, PII in notifications</td><td>S–M</td></tr>
-          </tbody>
-        </table>
+      <h3>What we can add next</h3>
+      <p className="muted small">Each item lists value, dependencies, risks, and rough effort (S, M, L). Items marked <span className="ext">external</span> need a new provider or an institutional agreement.</p>
+      <div className="roadmap">
+        {ROADMAP.map((r) => (
+          <div className="rmitem" key={r.title}>
+            <h4><span>{r.title} {r.external && <span className="ext">external</span>}</span><span className="effort">{r.effort}</span></h4>
+            <dl>
+              <dt>Value</dt><dd>{r.value}</dd>
+              <dt>Needs</dt><dd>{r.needs}</dd>
+              <dt>Risks</dt><dd>{r.risks}</dd>
+            </dl>
+          </div>
+        ))}
       </div>
-      <p className="muted small">Buildable on the current stack (no new provider): reviewer assignment/status, fairness dashboards, exports, longitudinal tables, model-feedback capture. Requires new providers or agreements (⛔): real WhatsApp, KEMIS integration, and notification channels.</p>
-      <p className="muted">This dashboard is the back-office tool for trained reviewers; the child-facing part is the WhatsApp chat. Phase 0 pilot build.</p>
+      <p className="muted small">Buildable on the current stack: reviewer assignment and status, fairness dashboards, exports, longitudinal tables, model-feedback capture. Needs a new provider or agreement: real WhatsApp (Twilio), KEMIS integration, notification channels.</p>
+      <p className="muted small">This dashboard is the back-office tool for trained reviewers. The child-facing part is the WhatsApp chat. Phase 0 pilot build.</p>
     </div>
   );
 }
+
+const ROADMAP = [
+  { title: "Real WhatsApp (Twilio)", external: true, effort: "M",
+    value: "Reach real children in the field.",
+    needs: "Twilio account and WhatsApp sender, approved message templates, webhook handling, consent and opt-out, retries, audit logs, and the provider adapter (already stubbed).",
+    risks: "Delivery and consent handling, message cost, personal data in transit." },
+  { title: "KEMIS data (discovery)", external: true, effort: "L",
+    value: "Find never-nominated children from existing records.",
+    needs: "First confirm the system and that an authorised route exists (data model, auth, consent basis, rate limits, MOU). No endpoint is assumed. Interim option: CSV or SFTP or manual import with audit logs, via the existing adapter interface.",
+    risks: "No public write API today, legal and consent basis, re-encoding teacher bias." },
+  { title: "School and teacher accounts, roles", external: false, effort: "L",
+    value: "Real logins and scoped access.",
+    needs: "Authentication, users and roles tables, session management.",
+    risks: "Access control and credential security." },
+  { title: "Reviewer assignment and In-review status", external: false, effort: "M",
+    value: "Coordinate several reviewers.",
+    needs: "New status and assignment columns, a migration beyond the current schema.",
+    risks: "Schema change against the locked model." },
+  { title: "Fairness and calibration dashboards", external: false, effort: "M",
+    value: "Support the equity claim with evidence.",
+    needs: "Labelled ground truth, reviewer-agreement capture, more metrics.",
+    risks: "Misleading statistics on small samples." },
+  { title: "Longitudinal support tracking", external: false, effort: "L",
+    value: "Follow outcomes over time.",
+    needs: "Outcome and follow-up tables, a link to Layer 2.",
+    risks: "Long-term data governance." },
+  { title: "Model recalibration from reviewer feedback", external: false, effort: "M",
+    value: "Improve scoring from reviewer decisions.",
+    needs: "Feedback capture, prompt and version management, an eval set.",
+    risks: "Feedback loops that encode bias." },
+  { title: "Exports and reporting", external: false, effort: "S",
+    value: "Share de-identified statistics with partners.",
+    needs: "Export endpoints, aggregation, redaction.",
+    risks: "Re-identification of small groups." },
+  { title: "Notifications and escalation", external: true, effort: "S",
+    value: "Prompt timely reviewer action.",
+    needs: "Email or SMS integration, rules.",
+    risks: "Alert fatigue, personal data in notifications." },
+];

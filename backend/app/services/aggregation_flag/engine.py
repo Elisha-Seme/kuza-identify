@@ -129,9 +129,9 @@ def evaluate_and_flag(db: Session, session_id: uuid.UUID) -> list[FlagEvent]:
                 session_id,
                 rule_id="R2_wide_domain_variance",
                 description=(
-                    f"Uneven profile: max-min spread {spread} >= "
-                    f"{WIDE_VARIANCE_THRESHOLD} across independent domains — the "
-                    "spike shape 2e screening looks for."
+                    f"Uneven profile. Max-min spread {spread} is at or above "
+                    f"{WIDE_VARIANCE_THRESHOLD} across independent domains. This is "
+                    "the spike shape 2e screening looks for."
                 ),
             )
         )

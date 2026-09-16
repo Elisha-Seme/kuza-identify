@@ -89,8 +89,8 @@ def run_grade_variance_mining(
             signal_type=SignalType.grade_variance,
             evidence_text=(
                 f"learner_ref={ref}: subject-score spread {spread:.0f} "
-                f"(stdev {stdev}) across {len(scores)} subjects — uneven profile "
-                "worth inviting to the active screener. ADVISORY ONLY; not a score."
+                f"(stdev {stdev}) across {len(scores)} subjects. Uneven profile "
+                "worth inviting to the active screener. Advisory only, not a score."
             ),
             confidence="low",
         )
