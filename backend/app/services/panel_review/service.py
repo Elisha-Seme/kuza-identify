@@ -24,6 +24,7 @@ from app.models import (
     Learner,
     NominationRecord,
     PanelReview,
+    PortfolioSubmission,
     School,
     ScreeningSession,
 )
@@ -45,6 +46,7 @@ class FlaggedProfile:
     flags: list[dict]
     nomination_amber_flags: int
     candidate_signals: list[dict]
+    portfolio_submissions: list[dict] = field(default_factory=list)
     existing_decision: str | None = field(default=None)
     # --- read-only workflow/quality fields (no schema change) ----------------
     language: str = "en"
@@ -119,6 +121,23 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
         )
     ]
 
+    # Portfolio / work-sample evidence for this learner (advisory only).
+    portfolios = [
+        {
+            "id": str(p.id),
+            "title": p.title,
+            "description": _clean(p.description),
+            "submitted_by_role": p.submitted_by_role,
+            "external_reference": p.external_reference,
+            "submitted_at": p.submitted_at.isoformat(),
+        }
+        for p in db.scalars(
+            select(PortfolioSubmission)
+            .where(PortfolioSubmission.learner_id == learner.id)
+            .order_by(PortfolioSubmission.submitted_at.desc())
+        )
+    ]
+
     reviews = list(
         db.scalars(
             select(PanelReview)
@@ -157,6 +176,7 @@ def get_flagged_profile(db: Session, session_id: uuid.UUID) -> FlaggedProfile:
         flags=flags,
         nomination_amber_flags=amber,
         candidate_signals=signals,
+        portfolio_submissions=portfolios,
         existing_decision=reviews[0].decision.value if reviews else None,
         language=session.language.value,
         channel=session.channel.value,

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen, Gavel, UserPlus, ListChecks, RotateCw, Play, TriangleAlert,
   ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck, Sparkles,
-  Calculator, Puzzle, Workflow, Brain, ArrowRight, RefreshCw,
+  Calculator, Puzzle, Workflow, Brain, ArrowRight, RefreshCw, Mic, MicOff,
 } from "lucide-react";
 import {
   ChecklistItem, FlaggedProfile, Health, Metrics, ScreeningItem, SchoolRow,
@@ -39,6 +39,47 @@ const DECISION_HELP: Record<string, string> = {
 };
 function statusOf(p: FlaggedProfile): "awaiting" | "advanced" | "held" | "declined" {
   return (p.existing_decision as any) || "awaiting";
+}
+
+/** Real, working voice input using the browser's own speech recognition
+ * (Web Speech API), free, no server credential, works today in this preview.
+ * This is intentionally distinct from real WhatsApp voice notes, which need
+ * Twilio (for the audio) plus a separate speech-to-text provider (Claude does
+ * not transcribe audio), see services/transcription/service.py. Feature-
+ * detected: hides itself if the browser has no SpeechRecognition support. */
+function VoiceMicButton({ lang, onResult }: { lang: "en" | "sw"; onResult: (text: string) => void }) {
+  const [listening, setListening] = useState(false);
+  const recRef = useRef<any>(null);
+  useEffect(() => {
+    const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    recRef.current = Ctor ? new Ctor() : null;
+  }, []);
+
+  function toggle() {
+    const rec = recRef.current;
+    if (!rec) return;
+    if (listening) { rec.stop(); return; }
+    rec.lang = lang === "sw" ? "sw-KE" : "en-KE";
+    rec.interimResults = false;
+    rec.onresult = (e: any) => {
+      const text = Array.from(e.results).map((r: any) => r[0].transcript).join(" ");
+      onResult(text);
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    rec.start();
+    setListening(true);
+  }
+
+  const hasSupport = typeof window !== "undefined" &&
+    ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+  if (!hasSupport) return null;
+  return (
+    <button type="button" className={"micbtn" + (listening ? " on" : "")} onClick={toggle}>
+      {listening ? <MicOff size={15} className="lic" /> : <Mic size={15} className="lic" />}
+      {listening ? "Stop recording" : "Answer by voice"}
+    </button>
+  );
 }
 
 function Mascot({ src, size = 56, float = false }: { src: string; size?: number; float?: boolean }) {
@@ -358,7 +399,7 @@ function NominateTab() {
   const [form, setForm] = useState<ChecklistItem[]>([]);
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [schoolId, setSchoolId] = useState("");
-  const [role, setRole] = useState<"teacher" | "parent">("teacher");
+  const [role, setRole] = useState<"teacher" | "parent" | "peer">("teacher");
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [observation, setObservation] = useState("");
   const [ageRange, setAgeRange] = useState("");
@@ -386,7 +427,7 @@ function NominateTab() {
       const r = await submitNomination({
         school_id: schoolId, nominator_role: role,
         checklist_responses: { ...answers, _observation: observation || undefined, _age_range: ageRange || undefined },
-        guardian_identifier: role === "parent" ? "web-parent-consent" : "web-teacher-consent",
+        guardian_identifier: `web-${role}-consent`,
       });
       setResult({ id: r.nomination_id, amber: r.amber_flag_count });
       setAnswers({}); setObservation(""); setAgeRange(""); setConsent(false); localStorage.removeItem(DRAFT_KEY);
@@ -408,7 +449,11 @@ function NominateTab() {
       <div className="field"><label>I am a
         <select value={role} onChange={(e) => setRole(e.target.value as any)}>
           <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
+          <option value="peer">Peer or classmate</option>
         </select></label></div>
+      {role === "peer" && (
+        <div className="banner info small">A peer nomination is shown to the panel as lower-confidence context, alongside any teacher or parent evidence. It cannot advance a learner on its own, and it works best when a teacher can confirm it.</div>
+      )}
       <div className="field"><label>Approximate class or age range (optional)
         <input value={ageRange} onChange={(e) => setAgeRange(e.target.value)} placeholder="e.g. Grade 4, or about 9 to 10 years" /></label></div>
 
@@ -509,7 +554,7 @@ function TryItTab() {
           <Mascot src="/mascot.png" size={44} />
           <div>
             <h2>Try the screener</h2>
-            <p className="muted small">A preview of the real questions, at your own pace. Nothing you type here is saved, scored, or sent anywhere.</p>
+            <p className="muted small">A preview of the real questions, at your own pace. You can type or, where your browser supports it, answer by voice. Nothing you type or say here is saved, scored, or sent anywhere.</p>
           </div>
         </div>
         <div className="langtoggle" role="group" aria-label="Preview language">
@@ -541,6 +586,9 @@ function TryItTab() {
             onChange={(e) => setDraft(e.target.value)}
             placeholder={lang === "sw" ? "Andika jibu lako hapa..." : "Type your answer here..."}
           />
+          <div className="miccontrol">
+            <VoiceMicButton lang={lang} onResult={(t) => setDraft((d) => (d ? d + " " + t : t))} />
+          </div>
           <div className="decisionbar">
             <button className="advance" onClick={() => next(draft)}>
               {step === total ? "Finish" : "Next"} <ArrowRight size={16} className="lic" />
@@ -579,23 +627,25 @@ function AboutTab() {
         </div>
         <div className="abt">
           <h3>What exists today (Phase 0 pilot)</h3>
-          <p>A narrow, human-supervised slice: structured screening, teacher or parent nomination, context-adjusted spike-based scoring, and a review panel where a person decides on every flag. There is no automated diagnosis or placement. It currently runs on demo data, and the WhatsApp channel is in demo mode until a real provider is connected.</p>
+          <p>A narrow, human-supervised slice: structured screening over WhatsApp, SMS, or USSD, teacher, parent, or peer nomination, portfolio evidence, context-adjusted spike-based scoring, and a review panel where a person decides on every flag. There is no automated diagnosis or placement. It currently runs on demo data, and every channel is in demo mode until a real provider (Twilio for WhatsApp and SMS, Africa's Talking for USSD) is connected.</p>
         </div>
         <div className="abt">
-          <h3>Three ways a child is found</h3>
+          <h3>Four ways a child is found</h3>
           <ul>
-            <li><b>Screening response.</b> The child answers five reasoning questions.</li>
-            <li><b>Teacher or parent nomination.</b> A structured referral form.</li>
+            <li><b>Screening response.</b> The child answers reasoning questions, over WhatsApp, SMS, or USSD, no smartphone or internet required for the last two.</li>
+            <li><b>Teacher, parent, or peer nomination.</b> A structured referral form; a peer referral is shown as lower-confidence context, never equal-weight with an adult's.</li>
+            <li><b>Portfolio or work sample.</b> A description of a drawing, writing, or project, as supporting evidence.</li>
             <li><b>School-records signal.</b> A background job spots uneven grade patterns (spreadsheet only, no OCR yet).</li>
           </ul>
         </div>
         <div className="abt">
-          <h3>The five reasoning domains</h3>
+          <h3>The five core reasoning domains</h3>
           <ul className="domainlist">
             {Object.entries(DOMAIN_LABELS).map(([k, v]) => (
               <li key={k}><DIcon domain={k} size={20} />{v}</li>
             ))}
           </ul>
+          <p className="muted small" style={{ marginTop: 8 }}>Off-level (harder) items and a creativity item exist as additional evidence content but are not yet part of the automatic session, see the Questions tab.</p>
         </div>
         <div className="abt">
           <h3>How Claude scoring works</h3>
@@ -622,9 +672,9 @@ function AboutTab() {
           <h3>Live capabilities and current limits</h3>
           <div className="two">
             <div><b>Live now</b>
-              <ul><li>Screening, Claude scoring, flags</li><li>Nomination form (2e checklist)</li><li>Human review and audit log</li><li>Context adjustment (tier lookup)</li><li>Records signal from spreadsheets</li></ul></div>
+              <ul><li>Screening, Claude scoring, flags</li><li>Teacher, parent, and peer nomination (2e checklist)</li><li>Portfolio / work-sample evidence</li><li>WhatsApp, SMS, and USSD session logic (all mock providers)</li><li>Off-level and creativity bonus items (preview only)</li><li>Human review and audit log</li><li>Context adjustment (tier lookup)</li><li>Records signal from spreadsheets</li></ul></div>
             <div><b>Not yet</b>
-              <ul><li>Real WhatsApp (Twilio)</li><li>Trained context model</li><li>OCR of paper records</li><li>KEMIS or KNEC integration</li><li>Reviewer accounts</li></ul></div>
+              <ul><li>Real WhatsApp/SMS (Twilio) or USSD (Africa's Talking)</li><li>Voice-note transcription (needs a speech-to-text provider, interface only)</li><li>Trained context model</li><li>OCR of paper records</li><li>KEMIS or KNEC integration</li><li>Reviewer accounts</li></ul></div>
           </div>
         </div>
       </div>
@@ -657,17 +707,25 @@ function AboutTab() {
           </div>
         ))}
       </div>
-      <p className="muted small">Buildable on the current stack: reviewer assignment and status, fairness dashboards, exports, longitudinal tables, model-feedback capture. Needs a new provider or agreement: real WhatsApp (Twilio), KEMIS integration, notification channels.</p>
-      <p className="muted small">This dashboard is the back-office tool for trained reviewers. The child-facing part is the WhatsApp chat. Phase 0 pilot build.</p>
+      <p className="muted small">Buildable on the current stack: reviewer assignment and status, fairness dashboards, exports, longitudinal tables, model-feedback capture. Needs a new provider or agreement: real WhatsApp/SMS (Twilio), real USSD (Africa's Talking), voice transcription, KEMIS integration, notification channels.</p>
+      <p className="muted small">This dashboard is the back-office tool for trained reviewers. The child-facing part is WhatsApp, SMS, or USSD. Phase 0 pilot build.</p>
     </div>
   );
 }
 
 const ROADMAP = [
-  { title: "Real WhatsApp (Twilio)", external: true, effort: "M",
-    value: "Reach real children in the field.",
-    needs: "Twilio account and WhatsApp sender, approved message templates, webhook handling, consent and opt-out, retries, audit logs, and the provider adapter (already stubbed).",
+  { title: "Real WhatsApp and SMS (Twilio)", external: true, effort: "M",
+    value: "Reach real children in the field, including on a basic phone with no data plan.",
+    needs: "Twilio account and sender numbers, approved WhatsApp message templates, webhook handling, consent and opt-out, retries, audit logs. The provider adapters for both channels are already built and stubbed.",
     risks: "Delivery and consent handling, message cost, personal data in transit." },
+  { title: "Real USSD (Africa's Talking)", external: true, effort: "M",
+    value: "Reach children with no smartphone and no internet at all, dial a shortcode, no airtime needed.",
+    needs: "An Africa's Talking account and a shortcode, session-timeout handling, character-limit-aware prompts. The provider and gateway logic are already built and stubbed; USSD suits the forced-choice item far better than an open-ended one.",
+    risks: "Session time-outs cut a slow thinker off mid-answer, which cuts against the untimed accommodation; best for shorter, forced-choice items." },
+  { title: "Voice-note transcription", external: true, effort: "S",
+    value: "A dyslexia / writing-anxiety accommodation, answer by speaking instead of typing.",
+    needs: "A speech-to-text provider (OpenAI Whisper or similar) and its own API key, wired into the existing TranscriptionProvider interface. Claude does not transcribe audio. The web preview already does this for free using the browser's own speech recognition.",
+    risks: "A new provider dependency and its cost; accuracy in Kiswahili and background noise need evaluation." },
   { title: "KEMIS data (discovery)", external: true, effort: "L",
     value: "Find never-nominated children from existing records.",
     needs: "First confirm the system and that an authorised route exists (data model, auth, consent basis, rate limits, MOU). No endpoint is assumed. Interim option: CSV or SFTP or manual import with audit logs, via the existing adapter interface.",

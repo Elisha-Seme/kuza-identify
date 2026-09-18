@@ -319,3 +319,32 @@ class DecisionAuditLog(Base):
     logged_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class PortfolioSubmission(Base):
+    """Portfolio / work-sample evidence — added beyond the original Section 5
+    entity list, at the project owner's request, as a 4th evidence type
+    alongside screening, nomination, and passive signals.
+
+    Deliberately additive: it does not touch any of the original locked
+    entities or their columns. Like SchoolRecordImport, it stores a pointer to
+    the actual file/link, never the file inline (Section 5 discipline) — no
+    file storage provider is configured yet, so `external_reference` is a URL
+    or a description of where the sample lives until one is connected.
+    Evidence only: it is shown to the panel alongside other context and can
+    never advance a learner by itself, same discipline as CandidateSignal.
+    """
+
+    __tablename__ = "portfolio_submissions"
+
+    id: Mapped[uuid.UUID] = _pk()
+    learner_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("learners.id"), nullable=False
+    )
+    submitted_by_role: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    external_reference: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

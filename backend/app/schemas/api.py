@@ -54,6 +54,23 @@ class NominationResponse(BaseModel):
     amber_flag_count: int
 
 
+# --- Portfolio / work-sample evidence -----------------------------------------
+class PortfolioRequest(BaseModel):
+    school_id: uuid.UUID
+    submitted_by_role: NominatorRole
+    title: str
+    description: str
+    external_reference: str | None = None
+    learner_id: uuid.UUID | None = None
+    gender: str | None = None
+    cohort_id: str | None = None
+
+
+class PortfolioResponse(BaseModel):
+    learner_id: uuid.UUID
+    submission_id: uuid.UUID
+
+
 # --- Panel review -------------------------------------------------------------
 class DecisionRequest(BaseModel):
     reviewer_id: str

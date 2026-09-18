@@ -260,6 +260,9 @@ textarea { min-height: 76px; resize: vertical; }
 .bubble .qdomain { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--teal); }
 .bubble .qtext { font-size: 15px; margin: 8px 0 12px; }
 .bubble textarea { background: #fff; }
+.miccontrol { margin-top: 8px; }
+.micbtn { font-size: 12.5px; color: var(--teal); border-color: var(--teal); background: #fff; }
+.micbtn.on { background: var(--orange-t); color: var(--orange); border-color: var(--orange); }
 .donecard { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .doneheading { margin: 4px 0 0; font-size: 17px; text-transform: none; letter-spacing: normal; color: var(--ink); }
 

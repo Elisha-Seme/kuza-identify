@@ -11,6 +11,7 @@ from app.models.entities import (
     Learner,
     NominationRecord,
     PanelReview,
+    PortfolioSubmission,
     School,
     SchoolRecordImport,
     ScreeningSession,
@@ -30,4 +31,5 @@ __all__ = [
     "CandidateSignal",
     "ConsentRecord",
     "DecisionAuditLog",
+    "PortfolioSubmission",
 ]

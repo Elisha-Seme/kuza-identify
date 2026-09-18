@@ -18,10 +18,13 @@ class LearnerSource(str, enum.Enum):
 
 
 class Channel(str, enum.Enum):
-    """ScreeningSession.channel. USSD is modelled but out of scope for Phase 0."""
+    """ScreeningSession.channel — the delivery channel a session ran over.
+    Added at the project owner's request: SMS and USSD as no-smartphone,
+    no-internet channels alongside WhatsApp (see providers/sms, providers/ussd)."""
 
     whatsapp = "whatsapp"
     ussd = "ussd"
+    sms = "sms"
 
 
 class Language(str, enum.Enum):
@@ -44,6 +47,7 @@ class NominatorRole(str, enum.Enum):
 
     teacher = "teacher"
     parent = "parent"
+    peer = "peer"
 
 
 class PanelDecision(str, enum.Enum):

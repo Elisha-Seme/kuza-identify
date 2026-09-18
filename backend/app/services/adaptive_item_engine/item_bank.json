@@ -1,5 +1,5 @@
 {
-  "_README": "PLACEHOLDER ITEM BANK — replace with the real prototype 5-item / 5-domain set. This file is the ONLY thing to swap; the engine, gateway and scorer read it generically. Each item is bilingual (en/sw, Section 7) and phrased to degrade to plain text so it works on USSD too (Section 3.4). Open-ended items feed the LLM Scoring Service (Section 3.3); their `expected_reasoning` is guidance for the scorer, never shown to the child. `session_intro` states the untimed, no-penalty framing explicitly (UDL practice for ADHD/anxiety) rather than leaving it unstated.",
+  "_README": "PLACEHOLDER ITEM BANK — replace with the real prototype 5-item / 5-domain set. This file is the ONLY thing to swap; the engine, gateway and scorer read it generically. Each item is bilingual (en/sw, Section 7) and phrased to degrade to plain text so it works on USSD too (Section 3.4). Open-ended items feed the LLM Scoring Service (Section 3.3); their `expected_reasoning` is guidance for the scorer, never shown to the child. `session_intro` states the untimed, no-penalty framing explicitly (UDL practice for ADHD/anxiety) rather than leaving it unstated. `tier: core` items are the automatic 5-question session (unchanged shape, no regression); `tier: bonus_*` items are off-level/creativity additions not yet wired into automatic session flow, exposed for preview and future panel-requested deeper evidence.",
   "session_intro": {
     "en": "There is no time limit and no penalty for skipping a question, just answer in your own way. Some questions have no single right answer, we want to see how you think.",
     "sw": "Hakuna muda uliowekwa na hakuna adhabu kwa kuruka swali, jibu kwa njia yako. Maswali mengine hayana jibu moja sahihi, tunataka kuona jinsi unavyofikiri."
@@ -21,7 +21,8 @@
         "en": "A shopkeeper buys 12 oranges for 60 shillings and sells them for 8 shillings each. How much profit does she make, and how did you work it out?",
         "sw": "Mwuzaji ananunua machungwa 12 kwa shilingi 60 na anauza kila moja kwa shilingi 8. Anapata faida kiasi gani, na ulifikiaje jibu hilo?"
       },
-      "expected_reasoning": "Cost 60, revenue 12*8=96, profit 36. Credit correct method even if arithmetic slips; note whether the child shows the per-unit vs total reasoning."
+      "expected_reasoning": "Cost 60, revenue 12*8=96, profit 36. Credit correct method even if arithmetic slips; note whether the child shows the per-unit vs total reasoning.",
+      "tier": "core"
     },
     {
       "id": "vrb-01",
@@ -32,7 +33,8 @@
         "en": "Rain is to farmer as ____ is to fisherman. Pick the best fit: (a) a net, (b) a hat, (c) a boat, (d) a market. Say the letter. If you want, you can also explain why, but that is optional.",
         "sw": "Mvua ni kwa mkulima kama ____ ilivyo kwa mvuvi. Chagua inayofaa zaidi: (a) wavu, (b) kofia, (c) mashua, (d) soko. Sema herufi. Ukitaka, unaweza pia kueleza sababu, lakini si lazima."
       },
-      "expected_reasoning": "Redesigned as forced-choice-plus-optional-explain: research on autism and figurative language finds the group difference concentrates specifically in tasks that require explicitly constructing and explaining a metaphor mapping, not in reaching the correct meaning itself. Correct answer is (a) a net, the tool the fisherman depends on the way a farmer depends on rain. Give full base credit for the letter alone if it is (a) or a defensible alternative with sound reasoning (e.g. (c) a boat, reasoned as 'a boat is what lets a fisherman work at all'); an explanation, if given, is bonus evidence of reasoning depth, never required for base credit."
+      "expected_reasoning": "Redesigned as forced-choice-plus-optional-explain: research on autism and figurative language finds the group difference concentrates specifically in tasks that require explicitly constructing and explaining a metaphor mapping, not in reaching the correct meaning itself. Correct answer is (a) a net, the tool the fisherman depends on the way a farmer depends on rain. Give full base credit for the letter alone if it is (a) or a defensible alternative with sound reasoning (e.g. (c) a boat, reasoned as 'a boat is what lets a fisherman work at all'); an explanation, if given, is bonus evidence of reasoning depth, never required for base credit.",
+      "tier": "core"
     },
     {
       "id": "pat-01",
@@ -43,7 +45,8 @@
         "en": "What number comes next: 2, 6, 12, 20, 30, ___ ? Tell me the rule you found.",
         "sw": "Ni nambari gani inayofuata: 2, 6, 12, 20, 30, ___ ? Nieleze kanuni uliyoipata."
       },
-      "expected_reasoning": "Differences 4,6,8,10 -> next diff 12 -> 42. Reward articulating the growing-difference rule even if final number is off."
+      "expected_reasoning": "Differences 4,6,8,10 -> next diff 12 -> 42. Reward articulating the growing-difference rule even if final number is off.",
+      "tier": "core"
     },
     {
       "id": "log-01",
@@ -54,7 +57,8 @@
         "en": "All the children who passed the test studied. Amina did not study. Can we be sure Amina failed? Explain your answer.",
         "sw": "Watoto wote waliofaulu mtihani walisoma. Amina hakusoma. Je, tunaweza kuwa na uhakika kwamba Amina alishindwa? Eleza jibu lako."
       },
-      "expected_reasoning": "Logically we cannot be certain: studying is necessary-for-passing only as stated ('all who passed studied' => not studying implies not passing). Actually this DOES imply Amina failed. Score whether the child reasons about the conditional correctly; strongest answers notice the direction of implication."
+      "expected_reasoning": "Logically we cannot be certain: studying is necessary-for-passing only as stated ('all who passed studied' => not studying implies not passing). Actually this DOES imply Amina failed. Score whether the child reasons about the conditional correctly; strongest answers notice the direction of implication.",
+      "tier": "core"
     },
     {
       "id": "wmm-01",
@@ -65,7 +69,44 @@
         "en": "Read this list once: mango, chair, river, seven, blue. Now, without looking back, write them in reverse order and tell me any trick you used to remember.",
         "sw": "Soma orodha hii mara moja: embe, kiti, mto, saba, bluu. Sasa, bila kuangalia nyuma, ziandike kwa mpangilio wa kinyume na unieleze mbinu uliyotumia kukumbuka."
       },
-      "expected_reasoning": "Score recall accuracy and, more importantly, any strategy described (chunking, story, visualisation) — strategy use is a stronger giftedness signal than raw recall."
+      "expected_reasoning": "Score recall accuracy and, more importantly, any strategy described (chunking, story, visualisation) — strategy use is a stronger giftedness signal than raw recall.",
+      "tier": "core"
+    },
+    {
+      "id": "pat-02-offlevel",
+      "domain": "pattern_recognition",
+      "difficulty": 7,
+      "type": "open_ended",
+      "tier": "bonus_off_level",
+      "prompt": {
+        "en": "Here is a two-step pattern using symbols: sun-sun-moon, moon-moon-sun, sun-sun-moon, moon-moon-sun, ___-___-___. What are the next three symbols, and what are the two rules working together?",
+        "sw": "Hii ni mfuatano wa alama wa hatua mbili: jua-jua-mwezi, mwezi-mwezi-jua, jua-jua-mwezi, mwezi-mwezi-jua, ___-___-___. Ni alama gani tatu zinazofuata, na ni kanuni gani mbili zinazofanya kazi pamoja?"
+      },
+      "expected_reasoning": "Off-level bonus item (harder than the core pattern item): the sequence alternates two three-symbol blocks (sun-sun-moon then moon-moon-sun), so the next block repeats sun-sun-moon. Credit noticing BOTH the within-block rule (two of one, one of the other) and the block-alternation rule; this two-layer structure is deliberately above the core item's difficulty, for a learner already scoring high on pat-01."
+    },
+    {
+      "id": "log-02-offlevel",
+      "domain": "logical_reasoning",
+      "difficulty": 7,
+      "type": "open_ended",
+      "tier": "bonus_off_level",
+      "prompt": {
+        "en": "If it is true that 'every learner who is on the football team also plays music,' and Juma plays music, can we be sure Juma is on the football team? What if we knew Juma was NOT on the football team, could Juma still play music? Explain both answers.",
+        "sw": "Ikiwa ni kweli kwamba 'kila mwanafunzi aliye kwenye timu ya mpira pia hucheza muziki,' na Juma hucheza muziki, je tunaweza kuwa na uhakika kwamba Juma yuko kwenye timu ya mpira? Je, ikiwa tungejua Juma HAYUKO kwenye timu ya mpira, Juma angeweza bado kucheza muziki? Eleza majibu yote mawili."
+      },
+      "expected_reasoning": "Off-level bonus item, two linked conditional questions (harder than the single-step core logic item): (1) No, we cannot be sure Juma is on the team, playing music does not imply team membership (affirming the consequent is a fallacy). (2) Yes, Juma could still play music without being on the team, music is necessary-for-team-membership as stated, not sufficient. Full credit requires correctly reasoning about BOTH directions of the conditional, not just one."
+    },
+    {
+      "id": "cre-01-bonus",
+      "domain": "creativity",
+      "difficulty": 3,
+      "type": "open_ended",
+      "tier": "bonus_creativity",
+      "prompt": {
+        "en": "Think of as many different uses as you can for an empty plastic bucket, other than carrying water. List as many as you can.",
+        "sw": "Fikiria matumizi mengi tofauti unayoweza kwa ndoo ya plastiki iliyo tupu, isipokuwa kubeba maji. Orodhesha mengi kadri unavyoweza."
+      },
+      "expected_reasoning": "Divergent-thinking item (Torrance-style: fluency, flexibility, originality, elaboration), not a right-or-wrong item. Score higher for more ideas (fluency), ideas spanning different categories e.g. seat, drum, plant pot, storage rather than many small variations of one idea (flexibility), and any genuinely unusual but workable idea (originality). This domain, creativity, is not part of the core 5 and is not yet wired into the automatic session; it is a bonus item for a richer future profile."
     }
   ]
 }

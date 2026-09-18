@@ -141,7 +141,7 @@ export async function getNominationForm(): Promise<ChecklistItem[]> {
 
 export async function submitNomination(body: {
   school_id: string;
-  nominator_role: "teacher" | "parent";
+  nominator_role: "teacher" | "parent" | "peer";
   checklist_responses: Record<string, unknown>;
   gender?: string;
   cohort_id?: string;

@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Screening Gateway.
     whatsapp_provider: str = Field(default="mock", alias="WHATSAPP_PROVIDER")
 
+    # --- Voice-note transcription (Section 6 style: interface only) --------
+    # "none" (default) => NotConfiguredTranscriptionProvider, fails loudly.
+    # No provider is implemented yet; this exists so the setting is real once
+    # one is added, without silently calling an unconfigured third party.
+    transcription_provider: str = Field(default="none", alias="TRANSCRIPTION_PROVIDER")
+
     # --- App ----------------------------------------------------------------
     app_env: str = Field(default="local", alias="APP_ENV")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
