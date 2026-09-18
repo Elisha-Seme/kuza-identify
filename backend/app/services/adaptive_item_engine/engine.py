@@ -30,8 +30,13 @@ class Item:
 
 
 @lru_cache
+def _load_raw() -> dict:
+    return json.loads(_BANK_PATH.read_text())
+
+
+@lru_cache
 def _load_bank() -> list[Item]:
-    data = json.loads(_BANK_PATH.read_text())
+    data = _load_raw()
     return [
         Item(
             id=i["id"],
@@ -43,6 +48,16 @@ def _load_bank() -> list[Item]:
         )
         for i in data["items"]
     ]
+
+
+def session_intro(language: Language) -> str | None:
+    """The untimed / no-penalty framing shown once, before the first item
+    (UDL practice: state the accommodation explicitly, don't just leave it
+    unenforced). Returns None if the bank defines no intro."""
+    intro = _load_raw().get("session_intro")
+    if not intro:
+        return None
+    return intro.get(language.value) or intro.get("en")
 
 
 def all_items() -> list[Item]:

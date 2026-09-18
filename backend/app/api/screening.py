@@ -23,6 +23,18 @@ from app.services.screening_gateway import service as gateway
 router = APIRouter(prefix="/screening", tags=["screening"])
 
 
+@router.get("/intro", response_model=dict)
+def get_intro():
+    """The bilingual, untimed/no-penalty framing shown once before the first
+    item (see item_bank.json `session_intro`). Public and read-only."""
+    from app.core.enums import Language
+
+    return {
+        "en": items.session_intro(Language.en) or "",
+        "sw": items.session_intro(Language.sw) or "",
+    }
+
+
 @router.get("/items", response_model=list[dict])
 def list_items():
     """Public, read-only view of the screening item set (the 5 questions a child

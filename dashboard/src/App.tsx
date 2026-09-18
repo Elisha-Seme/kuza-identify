@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BookOpen, Gavel, UserPlus, ListChecks, RotateCw, Play, TriangleAlert,
-  ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck,
-  Calculator, Puzzle, Workflow, Brain,
+  ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck, Sparkles,
+  Calculator, Puzzle, Workflow, Brain, ArrowRight, RefreshCw,
 } from "lucide-react";
 import {
   ChecklistItem, FlaggedProfile, Health, Metrics, ScreeningItem, SchoolRow,
-  getHealth, getMetrics, getNominationForm, listFlagged, listItems, listSchools,
-  recordDecision, runDemoScreening, submitNomination,
+  getHealth, getIntro, getMetrics, getNominationForm, listFlagged, listItems,
+  listSchools, recordDecision, runDemoScreening, submitNomination,
 } from "./api";
 
-type Tab = "about" | "review" | "nominate" | "questions";
+type Tab = "about" | "review" | "nominate" | "questions" | "try";
 
 const DOMAIN_LABELS: Record<string, string> = {
   numerical_reasoning: "Numeracy", verbal_reasoning: "Verbal",
@@ -66,6 +66,7 @@ export function App() {
     { id: "review", label: "Panel review", icon: <Gavel size={16} className="lic" />, purpose: "Review flagged learners and record decisions." },
     { id: "nominate", label: "Nominate", icon: <UserPlus size={16} className="lic" />, purpose: "Refer a learner for screening." },
     { id: "questions", label: "Questions", icon: <ListChecks size={16} className="lic" />, purpose: "The five questions a learner answers." },
+    { id: "try", label: "Try it", icon: <Sparkles size={16} className="lic" />, purpose: "Experience the screener the way a learner would, at your own pace." },
   ];
 
   return (
@@ -104,6 +105,7 @@ export function App() {
         {tab === "review" && <ReviewTab health={health} />}
         {tab === "nominate" && <NominateTab />}
         {tab === "questions" && <QuestionsTab />}
+        {tab === "try" && <TryItTab />}
       </main>
     </div>
   );
@@ -461,6 +463,100 @@ function QuestionsTab() {
             </li>
           ))}
         </ol>
+      )}
+    </div>
+  );
+}
+
+/* ============================== Try it ==================================== */
+function TryItTab() {
+  const [intro, setIntro] = useState<{ en: string; sw: string } | null>(null);
+  const [items, setItems] = useState<ScreeningItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState<"en" | "sw">("en");
+  const [step, setStep] = useState(0); // 0 = intro, 1..N = items, N+1 = done
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    Promise.all([getIntro(), listItems()])
+      .then(([i, its]) => { setIntro(i); setItems(its); })
+      .catch((e) => setError(String(e)));
+  }, []);
+
+  function restart() {
+    setStep(0); setAnswers({}); setDraft("");
+  }
+
+  function next(answer: string) {
+    const current = items?.[step - 1];
+    if (current) setAnswers((a) => ({ ...a, [current.id]: answer }));
+    setDraft("");
+    setStep((s) => s + 1);
+  }
+
+  if (error) return <div className="formcard"><div className="error">{error}</div></div>;
+  if (!intro || !items) return <div className="formcard"><div className="loading">Loading preview.</div></div>;
+
+  const total = items.length;
+  const done = step > total;
+  const current = !done && step > 0 ? items[step - 1] : null;
+
+  return (
+    <div className="formcard tryit">
+      <div className="tryhead">
+        <div className="tryheadleft">
+          <Mascot src="/mascot.png" size={44} />
+          <div>
+            <h2>Try the screener</h2>
+            <p className="muted small">A preview of the real questions, at your own pace. Nothing you type here is saved, scored, or sent anywhere.</p>
+          </div>
+        </div>
+        <div className="langtoggle" role="group" aria-label="Preview language">
+          <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
+          <button className={lang === "sw" ? "on" : ""} onClick={() => setLang("sw")}>SW</button>
+        </div>
+      </div>
+
+      <div className="dots" aria-hidden>
+        {Array.from({ length: total }).map((_, i) => {
+          const cls = done || i < step - 1 ? "on" : i === step - 1 ? "cur" : "";
+          return <span key={i} className={"dot2 " + cls} />;
+        })}
+      </div>
+
+      {step === 0 && (
+        <div className="bubble reveal">
+          <p>{intro[lang]}</p>
+          <button className="advance" onClick={() => setStep(1)}>Start <ArrowRight size={16} className="lic" /></button>
+        </div>
+      )}
+
+      {current && (
+        <div className="bubble reveal" key={current.id}>
+          <span className="qdomain"><DIcon domain={current.domain} size={16} />{DOMAIN_LABELS[current.domain] ?? current.domain}</span>
+          <p className="qtext">{current.prompt[lang]}</p>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={lang === "sw" ? "Andika jibu lako hapa..." : "Type your answer here..."}
+          />
+          <div className="decisionbar">
+            <button className="advance" onClick={() => next(draft)}>
+              {step === total ? "Finish" : "Next"} <ArrowRight size={16} className="lic" />
+            </button>
+            <button onClick={() => next("")}>Skip this one</button>
+          </div>
+        </div>
+      )}
+
+      {done && (
+        <div className="bubble reveal donecard">
+          <Mascot src="/mascot-thumb.png" size={72} float />
+          <h3 className="doneheading">Thank you</h3>
+          <p>In a real session, a person on the review panel would read the reasoning behind these answers, not just check them right or wrong. There is still no time limit, no score shown to the learner, and no decision made by AI.</p>
+          <button onClick={restart}><RefreshCw size={16} className="lic" />Try it again</button>
+        </div>
       )}
     </div>
   );

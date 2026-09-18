@@ -1,5 +1,9 @@
 {
-  "_README": "PLACEHOLDER ITEM BANK — replace with the real prototype 5-item / 5-domain set. This file is the ONLY thing to swap; the engine, gateway and scorer read it generically. Each item is bilingual (en/sw, Section 7) and phrased to degrade to plain text so it works on USSD too (Section 3.4). Open-ended items feed the LLM Scoring Service (Section 3.3); their `expected_reasoning` is guidance for the scorer, never shown to the child.",
+  "_README": "PLACEHOLDER ITEM BANK — replace with the real prototype 5-item / 5-domain set. This file is the ONLY thing to swap; the engine, gateway and scorer read it generically. Each item is bilingual (en/sw, Section 7) and phrased to degrade to plain text so it works on USSD too (Section 3.4). Open-ended items feed the LLM Scoring Service (Section 3.3); their `expected_reasoning` is guidance for the scorer, never shown to the child. `session_intro` states the untimed, no-penalty framing explicitly (UDL practice for ADHD/anxiety) rather than leaving it unstated.",
+  "session_intro": {
+    "en": "There is no time limit and no penalty for skipping a question, just answer in your own way. Some questions have no single right answer, we want to see how you think.",
+    "sw": "Hakuna muda uliowekwa na hakuna adhabu kwa kuruka swali, jibu kwa njia yako. Maswali mengine hayana jibu moja sahihi, tunataka kuona jinsi unavyofikiri."
+  },
   "domains": [
     "numerical_reasoning",
     "verbal_reasoning",
@@ -25,10 +29,10 @@
       "difficulty": 3,
       "type": "open_ended",
       "prompt": {
-        "en": "Finish this sentence in your own words and explain why: 'Rain is to farmer as ____ is to fisherman.'",
-        "sw": "Maliza sentensi hii kwa maneno yako na ueleze sababu: 'Mvua ni kwa mkulima kama ____ ilivyo kwa mvuvi.'"
+        "en": "Rain is to farmer as ____ is to fisherman. Pick the best fit: (a) a net, (b) a hat, (c) a boat, (d) a market. Say the letter. If you want, you can also explain why, but that is optional.",
+        "sw": "Mvua ni kwa mkulima kama ____ ilivyo kwa mvuvi. Chagua inayofaa zaidi: (a) wavu, (b) kofia, (c) mashua, (d) soko. Sema herufi. Ukitaka, unaweza pia kueleza sababu, lakini si lazima."
       },
-      "expected_reasoning": "Looking for an analogy that maps a needed condition (e.g. rain->good weather/calm water/fish). Score the quality of the mapping and the explanation, not the exact word."
+      "expected_reasoning": "Redesigned as forced-choice-plus-optional-explain: research on autism and figurative language finds the group difference concentrates specifically in tasks that require explicitly constructing and explaining a metaphor mapping, not in reaching the correct meaning itself. Correct answer is (a) a net, the tool the fisherman depends on the way a farmer depends on rain. Give full base credit for the letter alone if it is (a) or a defensible alternative with sound reasoning (e.g. (c) a boat, reasoned as 'a boat is what lets a fisherman work at all'); an explanation, if given, is bonus evidence of reasoning depth, never required for base credit."
     },
     {
       "id": "pat-01",

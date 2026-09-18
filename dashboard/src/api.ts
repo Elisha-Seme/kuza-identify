@@ -104,6 +104,16 @@ export async function listItems(): Promise<ScreeningItem[]> {
   return r.json();
 }
 
+export interface Intro {
+  en: string;
+  sw: string;
+}
+export async function getIntro(): Promise<Intro> {
+  const r = await fetch(`${BASE}/screening/intro`);
+  if (!r.ok) throw new Error(`GET /screening/intro -> ${r.status}`);
+  return r.json();
+}
+
 export interface SchoolRow {
   id: string;
   name: string;

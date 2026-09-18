@@ -75,7 +75,13 @@ def start_session(
     db.add(session)
     db.flush()
     first = items.select_next([])
-    return session, (first.text(language) if first else None)
+    if first is None:
+        return session, None
+    # State the untimed / no-penalty accommodation explicitly, once, before the
+    # first item (UDL practice) rather than leaving it unenforced-but-unstated.
+    intro = items.session_intro(language)
+    prompt = f"{intro}\n\n{first.text(language)}" if intro else first.text(language)
+    return session, prompt
 
 
 def next_prompt(db: Session, session_id: uuid.UUID) -> str | None:
