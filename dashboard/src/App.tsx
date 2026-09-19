@@ -27,9 +27,22 @@ const DOMAIN_ICON: Record<string, typeof BookOpen> = {
   numerical_reasoning: Calculator, verbal_reasoning: Languages,
   pattern_recognition: Puzzle, logical_reasoning: Workflow, working_memory: Brain,
 };
-function DIcon({ domain, size = 18 }: { domain: string; size?: number }) {
+function DIcon({ domain, size = 18, chip = false }: { domain: string; size?: number; chip?: boolean }) {
   const I = DOMAIN_ICON[domain] || Brain;
-  return <I size={size} className="lic" />;
+  if (!chip) return <I size={size} className="lic" />;
+  return <span className="iconchip"><I size={size} className="lic" /></span>;
+}
+
+/** Small coloured pill for a decision status, reused everywhere a status is
+ * shown (queue cards, profile header, decision history) so the same status
+ * always carries the same icon. */
+const STATUS_ICON: Record<string, typeof Check> = {
+  awaiting: Clock, advanced: Check, advance: Check, held: Pause, hold: Pause,
+  declined: X, decline: X,
+};
+function StatusBadge({ status, label }: { status: string; label: string }) {
+  const I = STATUS_ICON[status] || Clock;
+  return <span className={"badge " + status}><I size={11} className="lic" />{label}</span>;
 }
 const SOURCE_LABELS: Record<string, string> = {
   active_screening: "Screening response",
@@ -210,11 +223,31 @@ function ReviewTab({ health }: { health: Health | null }) {
     return true;
   }), [profiles, statusFilter, sourceFilter, search]);
   const current = filtered.find((p) => p.session_id === selected) || filtered[0];
+  const counts = useMemo(() => {
+    const c = { awaiting: 0, advanced: 0, held: 0, declined: 0 };
+    for (const p of profiles || []) c[statusOf(p)]++;
+    return c;
+  }, [profiles]);
 
   return (
     <div>
-      <div className="rowbar">
+      <div className="pageheader">
+        <h2 className="pagetitle">Panel review</h2>
         <p className="lead">Learners the system flagged for review. Filter, open one, read the evidence, then record a decision.</p>
+      </div>
+
+      <div className="statrow">
+        <div className="statcard awaiting"><span className="iconchip"><Clock size={16} className="lic" /></span>
+          <div><div className="n">{counts.awaiting}</div><div className="lbl">{STATUS_LABELS.awaiting}</div></div></div>
+        <div className="statcard advanced"><span className="iconchip"><Check size={16} className="lic" /></span>
+          <div><div className="n">{counts.advanced}</div><div className="lbl">{STATUS_LABELS.advanced}</div></div></div>
+        <div className="statcard held"><span className="iconchip"><Pause size={16} className="lic" /></span>
+          <div><div className="n">{counts.held}</div><div className="lbl">{STATUS_LABELS.held}</div></div></div>
+        <div className="statcard declined"><span className="iconchip"><X size={16} className="lic" /></span>
+          <div><div className="n">{counts.declined}</div><div className="lbl">{STATUS_LABELS.declined}</div></div></div>
+      </div>
+
+      <div className="rowbar">
         <div className="controls">
           <span className="revfield">Reviewer <input value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} /></span>
           <button onClick={refresh}><RotateCw size={15} className="lic" />Refresh</button>
@@ -254,7 +287,14 @@ function ReviewTab({ health }: { health: Health | null }) {
           <aside>
             <h3>Queue ({filtered.length})</h3>
             {filtered.length === 0 ? (
-              <div className="emptybox"><Mascot src="/mascot.png" size={44} /><p>No learners match these filters.</p></div>
+              <div className="emptybox">
+                <Mascot src="/mascot.png" size={44} />
+                <p>No learners match these filters.</p>
+                <div className="emptyactions">
+                  <button onClick={refresh}><RotateCw size={15} className="lic" />Refresh</button>
+                  <button onClick={runDemo}><Play size={15} className="lic" />Run demo screening</button>
+                </div>
+              </div>
             ) : (
               <ul className="queue">
                 {filtered.map((p) => (
@@ -263,7 +303,7 @@ function ReviewTab({ health }: { health: Health | null }) {
                     onClick={() => setSelected(p.session_id)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(p.session_id); } }}>
                     <div className="cardtop">
-                      <span className={"badge " + statusOf(p)}>{STATUS_LABELS[statusOf(p)]}</span>
+                      <StatusBadge status={statusOf(p)} label={STATUS_LABELS[statusOf(p)]} />
                       <span className="source">{SOURCE_LABELS[p.learner_source] ?? p.learner_source}</span>
                     </div>
                     <div className="cardline">
@@ -314,7 +354,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
     <div>
       <div className="detailhead">
         <h2>Learner <code>{profile.learner_id.slice(0, 8)}</code></h2>
-        <span className={"badge " + statusOf(profile)}>{STATUS_LABELS[statusOf(profile)]}</span>
+        <StatusBadge status={statusOf(profile)} label={STATUS_LABELS[statusOf(profile)]} />
       </div>
       <div className="metaline">
         <span className="source">{SOURCE_LABELS[profile.learner_source] ?? profile.learner_source}</span>
@@ -352,9 +392,10 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
           {profile.profile.map((d) => (
             <div className="scorerow" key={d.domain}>
               <div className="scorehead">
-                <span className="name"><DIcon domain={d.domain} size={18} />{DOMAIN_LABELS[d.domain] ?? d.domain}</span>
+                <span className="name"><DIcon domain={d.domain} size={16} chip />{DOMAIN_LABELS[d.domain] ?? d.domain}</span>
                 <span className="nums">raw <b>{d.raw_score}</b> · factor {d.adjustment_factor.toFixed(2)} · <span className="adj">{d.adjusted_score}</span></span>
               </div>
+              <div className="scorebar"><span style={{ width: `${Math.max(0, Math.min(100, d.adjusted_score))}%` }} /></div>
               <div className="scoreev">{d.evidence_text}</div>
             </div>
           ))}
@@ -389,7 +430,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
           <h3>Decision history</h3>
           <ul className="history">
             {profile.review_history.map((r, i) => (
-              <li key={i}><span className={"badge " + r.decision}>{r.decision}</span>
+              <li key={i}><StatusBadge status={r.decision} label={r.decision} />
                 <span className="muted small">{r.reviewer_id}, {new Date(r.decided_at).toLocaleString()}{r.notes ? ". " + r.notes : ""}</span></li>
             ))}
           </ul>
@@ -486,10 +527,12 @@ function NominateTab() {
   }
 
   return (
-    <div className="formcard">
-      <h2>Nominate a child</h2>
-      <p className="lead">A teacher or parent refers a learner who seems capable. Marked items are twice-exceptional signs (gifted, but also struggling in a way that hides it). This is a referral for screening, not a diagnosis.</p>
-
+    <div>
+      <div className="pageheader">
+        <h2 className="pagetitle">Nominate a child</h2>
+        <p className="lead">A teacher or parent refers a learner who seems capable. Marked items are twice-exceptional signs (gifted, but also struggling in a way that hides it). This is a referral for screening, not a diagnosis.</p>
+      </div>
+      <div className="formcard">
       <div className="safeguard"><ShieldCheck size={18} className="lic" />
         <span>Do not enter the learner’s name or any medical information. Refer only learners you teach or are guardian to. A referral invites the learner to a short screening. A human panel reviews everything before any decision.</span></div>
 
@@ -535,6 +578,7 @@ function NominateTab() {
           <span>Nomination saved. Twice-exceptional signs ticked: <b>{result.amber}</b>. Tracking id <code>{result.id.slice(0, 8)}</code>. The learner now awaits screening before the panel records a decision.</span></div>
       )}
       {error && <div className="error">{error}</div>}
+      </div>
     </div>
   );
 }
@@ -573,10 +617,12 @@ function PortfolioTab() {
   }
 
   return (
-    <div className="formcard">
-      <h2>Submit a portfolio or work sample</h2>
-      <p className="lead">A fourth way a capable child is found: a description of a drawing, story, project, or piece of written work, submitted as supporting evidence. This is evidence for the panel to weigh, not a score, and not a decision.</p>
-
+    <div>
+      <div className="pageheader">
+        <h2 className="pagetitle">Submit a portfolio or work sample</h2>
+        <p className="lead">A fourth way a capable child is found: a description of a drawing, story, project, or piece of written work, submitted as supporting evidence. This is evidence for the panel to weigh, not a score, and not a decision.</p>
+      </div>
+      <div className="formcard">
       <div className="safeguard"><ShieldCheck size={18} className="lic" />
         <span>Do not enter the learner's name or any medical information. Describe the work itself, for example what the child made, said, or solved, and why it stood out to you.</span></div>
 
@@ -610,6 +656,7 @@ function PortfolioTab() {
           <span>Portfolio evidence saved. Tracking id <code>{result.submissionId.slice(0, 8)}</code>. It appears alongside any screening or nomination evidence for the panel to review.</span></div>
       )}
       {error && <div className="error">{error}</div>}
+      </div>
     </div>
   );
 }
@@ -639,21 +686,25 @@ function QuestionsTab() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { listItems().then(setItems).catch((e) => { setError(String(e)); setItems([]); }); }, []);
   return (
-    <div className="formcard">
-      <h2>The core screening questions</h2>
-      <p className="lead">A learner answers these five questions, over WhatsApp, SMS, or USSD, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic. This is the automatic session every screening runs today.</p>
+    <div>
+      <div className="pageheader">
+        <h2 className="pagetitle">The core screening questions</h2>
+        <p className="lead">A learner answers these five questions, over WhatsApp, SMS, or USSD, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic. This is the automatic session every screening runs today.</p>
+      </div>
+      <div className="formcard">
       {error && <div className="error">{error}</div>}
       {items === null ? <div className="loading">Loading questions.</div> : (
         <ol className="questions">
           {items.map((it) => (
             <li key={it.id} className="qitem">
-              <span className="qdomain"><DIcon domain={it.domain} size={18} />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
+              <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
               <p className="qen">{it.prompt.en}</p>
               <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
             </li>
           ))}
         </ol>
       )}
+      </div>
     </div>
   );
 }
@@ -665,9 +716,12 @@ function BonusQuestionsTab() {
   useEffect(() => { listBonusItems().then(setItems).catch((e) => { setError(String(e)); setItems([]); }); }, []);
   const TIER_LABELS: Record<string, string> = { bonus_off_level: "Off-level (harder)", bonus_creativity: "Creativity" };
   return (
-    <div className="formcard">
-      <h2>Bonus questions</h2>
-      <p className="lead">Off-level (deliberately harder) items and a creativity item, built as additional evidence for a learner who finishes the core five with room to spare. They exist and are scoreable today, but are not yet wired into the automatic session, a reviewer or a future version of the gateway would need to decide when to offer them.</p>
+    <div>
+      <div className="pageheader">
+        <h2 className="pagetitle">Bonus questions</h2>
+        <p className="lead">Off-level (deliberately harder) items and a creativity item, built as additional evidence for a learner who finishes the core five with room to spare. They exist and are scoreable today, but are not yet wired into the automatic session, a reviewer or a future version of the gateway would need to decide when to offer them.</p>
+      </div>
+      <div className="formcard">
       {error && <div className="error">{error}</div>}
       {items === null ? <div className="loading">Loading bonus questions.</div> : items.length === 0 ? (
         <p className="muted small">No bonus questions available.</p>
@@ -676,7 +730,7 @@ function BonusQuestionsTab() {
           {items.map((it) => (
             <li key={it.id} className="qitem">
               <div className="cardtop">
-                <span className="qdomain"><DIcon domain={it.domain} size={18} />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
+                <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
                 <span className="badge awaiting">{TIER_LABELS[it.tier] ?? it.tier}</span>
               </div>
               <p className="qen">{it.prompt.en}</p>
@@ -685,6 +739,7 @@ function BonusQuestionsTab() {
           ))}
         </ol>
       )}
+      </div>
     </div>
   );
 }
@@ -735,12 +790,12 @@ function TryItTab() {
   const frame = (text: string) => (isUssd ? (done ? "END " : "CON ") + text : text);
 
   return (
-    <div className="formcard tryit">
-      <div className="tryhead">
+    <div>
+      <div className="pageheader tryhead">
         <div className="tryheadleft">
           <Mascot src="/mascot.png" size={44} />
           <div>
-            <h2>Try the screener</h2>
+            <h2 className="pagetitle" style={{ fontSize: 22 }}>Try the screener</h2>
             <p className="muted small">A preview of the real questions, at your own pace. Switch channel below to see how WhatsApp, SMS, and USSD actually differ. Nothing you type or say here is saved, scored, or sent anywhere.</p>
           </div>
         </div>
@@ -749,6 +804,7 @@ function TryItTab() {
           <button className={lang === "sw" ? "on" : ""} onClick={() => setLang("sw")}>SW</button>
         </div>
       </div>
+      <div className="formcard tryit">
 
       <div className="channeltoggle" role="group" aria-label="Preview channel">
         {(["whatsapp", "sms", "ussd"] as PreviewChannel[]).map((c) => {
@@ -812,6 +868,7 @@ function TryItTab() {
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -851,7 +908,7 @@ function FeatureStatusGrid() {
           return (
             <div className="statuscard" key={f.label}>
               <div className="statustop">
-                <Icon size={16} className="lic" />
+                <span className={"iconchip sm" + (f.status === "soon" ? " amber" : "")}><Icon size={14} className="lic" /></span>
                 <span className={"tag " + f.status}>
                   {f.status === "live"
                     ? <><CircleDot size={10} className="lic" />Live</>
@@ -874,10 +931,12 @@ function AboutTab() {
   useEffect(() => { getMetrics().then(setM).catch(() => setM(null)); }, []);
 
   return (
-    <div className="formcard prose">
-      <div className="abouthero"><Mascot src="/mascot-wave.png" size={84} float /><Mascot src="/mascot.png" size={84} /></div>
-      <h2>How Kuza Connect works</h2>
-
+    <div>
+      <div className="pageheader aboutheader">
+        <h2 className="pagetitle">How Kuza Connect works</h2>
+        <div className="abouthero"><Mascot src="/mascot-wave.png" size={84} float /><Mascot src="/mascot.png" size={84} /></div>
+      </div>
+      <div className="formcard prose">
       <FeatureStatusGrid />
 
       <div className="aboutflow">
@@ -902,7 +961,7 @@ function AboutTab() {
           <h3>The five core reasoning domains</h3>
           <ul className="domainlist">
             {Object.entries(DOMAIN_LABELS).map(([k, v]) => (
-              <li key={k}><DIcon domain={k} size={20} />{v}</li>
+              <li key={k}><DIcon domain={k} size={17} chip />{v}</li>
             ))}
           </ul>
           <p className="muted small" style={{ marginTop: 8 }}>Off-level (harder) items and a creativity item exist as additional evidence content but are not yet part of the automatic session, see Screening &gt; Bonus questions.</p>
@@ -969,6 +1028,7 @@ function AboutTab() {
       </div>
       <p className="muted small">Buildable on the current stack: reviewer assignment and status, fairness dashboards, exports, longitudinal tables, model-feedback capture. Needs a new provider or agreement: real WhatsApp/SMS (Twilio), real USSD (Africa's Talking), voice transcription, KEMIS integration, notification channels.</p>
       <p className="muted small">This dashboard is the back-office tool for trained reviewers. The child-facing part is WhatsApp, SMS, or USSD. Phase 0 pilot build.</p>
+      </div>
     </div>
   );
 }
