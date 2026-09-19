@@ -31,6 +31,15 @@ export interface ReviewRow {
   decided_at: string;
 }
 
+export interface PortfolioSubmissionRow {
+  id: string;
+  title: string;
+  description: string;
+  submitted_by_role: string;
+  external_reference: string | null;
+  submitted_at: string;
+}
+
 export interface FlaggedProfile {
   session_id: string;
   learner_id: string;
@@ -40,6 +49,7 @@ export interface FlaggedProfile {
   flags: Flag[];
   nomination_amber_flags: number;
   candidate_signals: CandidateSignal[];
+  portfolio_submissions: PortfolioSubmissionRow[];
   existing_decision: string | null;
   language: string;
   channel: string;
@@ -104,6 +114,20 @@ export async function listItems(): Promise<ScreeningItem[]> {
   return r.json();
 }
 
+export interface BonusItem {
+  id: string;
+  domain: string;
+  difficulty: number;
+  tier: string;
+  prompt: { en: string; sw: string };
+}
+
+export async function listBonusItems(): Promise<BonusItem[]> {
+  const r = await fetch(`${BASE}/screening/items/bonus`);
+  if (!r.ok) throw new Error(`GET /screening/items/bonus -> ${r.status}`);
+  return r.json();
+}
+
 export interface Intro {
   en: string;
   sw: string;
@@ -153,6 +177,25 @@ export async function submitNomination(body: {
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`POST /nomination -> ${r.status}`);
+  return r.json();
+}
+
+export async function submitPortfolio(body: {
+  school_id: string;
+  submitted_by_role: "teacher" | "parent" | "peer";
+  title: string;
+  description: string;
+  external_reference?: string;
+  learner_id?: string;
+  gender?: string;
+  cohort_id?: string;
+}): Promise<{ learner_id: string; submission_id: string }> {
+  const r = await fetch(`${BASE}/portfolio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`POST /portfolio -> ${r.status}`);
   return r.json();
 }
 

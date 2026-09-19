@@ -76,6 +76,15 @@ a { color: var(--teal); }
 .tabs button.on { color: var(--teal); border-bottom-color: var(--teal); font-weight: 600; }
 .tabpurpose { color: var(--muted); font-size: 13px; margin: 10px 0 18px; }
 
+/* ---- sub-nav (inside Refer a learner / Screening) ---- */
+.subnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.subnav button {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  border-radius: 999px; padding: 7px 13px; font-size: 13px; min-height: 36px;
+}
+.subnav button.on { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 600; }
+
 /* ---- generic type ---- */
 h2 { font-size: 18px; }
 h3 { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
@@ -173,6 +182,12 @@ textarea { min-height: 76px; resize: vertical; }
 .two { display: grid; grid-template-columns: 1fr; gap: 14px; }
 @media (min-width: 620px) { .two { grid-template-columns: 1fr 1fr; } }
 
+.three { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 620px) { .three { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 980px) { .three { grid-template-columns: 1fr 1fr 1fr; } }
+.portfoliorow { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; margin-bottom: 8px; }
+.portfoliotop { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 3px; }
+
 .history { list-style: none; padding: 0; margin: 0; font-size: 13px; display: grid; gap: 6px; }
 .history li { padding-bottom: 6px; border-bottom: 1px solid var(--line-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
@@ -265,6 +280,36 @@ textarea { min-height: 76px; resize: vertical; }
 .micbtn.on { background: var(--orange-t); color: var(--orange); border-color: var(--orange); }
 .donecard { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .doneheading { margin: 4px 0 0; font-size: 17px; text-transform: none; letter-spacing: normal; color: var(--ink); }
+
+/* ---- channel preview: WhatsApp / SMS / USSD look genuinely different ---- */
+.channeltoggle { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.channeltoggle button { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 7px 12px; min-height: 36px; }
+.channeltoggle button.on { background: var(--teal); border-color: var(--teal); color: #fff; }
+.channelnote { display: flex; gap: 6px; align-items: flex-start; margin: 8px 0 0; }
+
+/* SMS: plain sequential thread, not a coloured chat bubble */
+.chatarea.sms .bubble { background: var(--card); border: 1px solid var(--line); border-radius: 4px; }
+.charcount { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.charcount.warn { color: var(--amber); }
+
+/* USSD: a synchronous, monospace phone screen, literal CON/END framing */
+.ussdscreen { background: var(--ink); border-radius: var(--radius); }
+.ussdscreen, .ussdscreen p, .ussdscreen .qtext, .ussdscreen .doneheading { color: #eef0f2; font-family: "Courier New", Courier, monospace; }
+.ussdscreen .qdomain { color: #9fb3bd; }
+.ussdscreen textarea { background: #0f1216; color: #eef0f2; border-color: #333a42; font-family: "Courier New", Courier, monospace; }
+.ussdscreen button { font-family: inherit; }
+
+/* ---- feature status grid (About) ---- */
+.statusgrid { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 10px 0 4px; }
+@media (min-width: 640px) { .statusgrid { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 980px) { .statusgrid { grid-template-columns: 1fr 1fr 1fr; } }
+.statuscard { border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; }
+.statustop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.statuscard b { font-size: 13px; }
+.statuscard p { margin-top: 3px; }
+.tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: .03em; }
+.tag.live { background: var(--teal-t); color: var(--teal); }
+.tag.soon { background: var(--amber-t); color: var(--amber); }
 
 /* ============================ motion ==================================== */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

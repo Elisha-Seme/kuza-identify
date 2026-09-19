@@ -3,14 +3,21 @@ import {
   BookOpen, Gavel, UserPlus, ListChecks, RotateCw, Play, TriangleAlert,
   ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck, Sparkles,
   Calculator, Puzzle, Workflow, Brain, ArrowRight, RefreshCw, Mic, MicOff,
+  MessageCircle, MessageSquareText, Smartphone, FileText, Layers, ClipboardList,
+  CircleDot, Clock,
 } from "lucide-react";
 import {
-  ChecklistItem, FlaggedProfile, Health, Metrics, ScreeningItem, SchoolRow,
-  getHealth, getIntro, getMetrics, getNominationForm, listFlagged, listItems,
-  listSchools, recordDecision, runDemoScreening, submitNomination,
+  BonusItem, ChecklistItem, FlaggedProfile, Health, Metrics, PortfolioSubmissionRow,
+  ScreeningItem, SchoolRow,
+  getHealth, getIntro, getMetrics, getNominationForm, listBonusItems, listFlagged,
+  listItems, listSchools, recordDecision, runDemoScreening, submitNomination,
+  submitPortfolio,
 } from "./api";
 
-type Tab = "about" | "review" | "nominate" | "questions" | "try";
+type Tab = "about" | "review" | "refer" | "screening";
+type ReferSub = "nominate" | "portfolio";
+type ScreeningSub = "core" | "bonus" | "try";
+type PreviewChannel = "whatsapp" | "sms" | "ussd";
 
 const DOMAIN_LABELS: Record<string, string> = {
   numerical_reasoning: "Numeracy", verbal_reasoning: "Verbal",
@@ -90,6 +97,24 @@ function Mascot({ src, size = 56, float = false }: { src: string; size?: number;
   );
 }
 
+/** Second-level navigation used inside "Refer a learner" and "Screening", so
+ * each newly-built feature area (portfolio, bonus items, per-channel preview)
+ * has a visible home instead of being buried or crowding the top nav. */
+function SubNav<T extends string>({
+  items, value, onChange,
+}: { items: { id: T; label: string; icon: ReactNode }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="subnav" role="tablist" aria-label="Section">
+      {items.map((it) => (
+        <button key={it.id} role="tab" aria-selected={value === it.id}
+          className={value === it.id ? "on" : ""} onClick={() => onChange(it.id)}>
+          {it.icon}{it.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function App() {
   const [tab, setTab] = useState<Tab>("about");
   const [health, setHealth] = useState<Health | null>(null);
@@ -103,11 +128,10 @@ export function App() {
   }, []);
 
   const TABS: { id: Tab; label: string; icon: ReactNode; purpose: string }[] = [
-    { id: "about", label: "How it works", icon: <BookOpen size={16} className="lic" />, purpose: "What this pilot does and how it works." },
+    { id: "about", label: "How it works", icon: <BookOpen size={16} className="lic" />, purpose: "What this pilot does, what is live, and what is coming next." },
     { id: "review", label: "Panel review", icon: <Gavel size={16} className="lic" />, purpose: "Review flagged learners and record decisions." },
-    { id: "nominate", label: "Nominate", icon: <UserPlus size={16} className="lic" />, purpose: "Refer a learner for screening." },
-    { id: "questions", label: "Questions", icon: <ListChecks size={16} className="lic" />, purpose: "The five questions a learner answers." },
-    { id: "try", label: "Try it", icon: <Sparkles size={16} className="lic" />, purpose: "Experience the screener the way a learner would, at your own pace." },
+    { id: "refer", label: "Refer a learner", icon: <UserPlus size={16} className="lic" />, purpose: "Nominate a child, or submit a portfolio / work sample as evidence." },
+    { id: "screening", label: "Screening", icon: <ListChecks size={16} className="lic" />, purpose: "The core and bonus questions, and a hands-on preview of WhatsApp, SMS, and USSD." },
   ];
 
   return (
@@ -144,9 +168,8 @@ export function App() {
       <main className="content" key={tab}>
         {tab === "about" && <AboutTab />}
         {tab === "review" && <ReviewTab health={health} />}
-        {tab === "nominate" && <NominateTab />}
-        {tab === "questions" && <QuestionsTab />}
-        {tab === "try" && <TryItTab />}
+        {tab === "refer" && <ReferTab />}
+        {tab === "screening" && <ScreeningTab />}
       </main>
     </div>
   );
@@ -338,7 +361,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
         </div>
       </section>
 
-      <div className="two">
+      <div className="three">
         <section style={{ margin: 0 }}>
           <h3>Nomination notes</h3>
           <p className="small">Twice-exceptional signs ticked: <b>{profile.nomination_amber_flags}</b> <span className="muted">(context, not a score)</span></p>
@@ -347,6 +370,17 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
           <h3>Records signal</h3>
           {profile.candidate_signals.length === 0 ? <p className="muted small">None.</p> :
             profile.candidate_signals.map((s) => <div key={s.id} className="muted small">{s.signal_type}, {s.confidence} confidence (advisory only)</div>)}
+        </section>
+        <section style={{ margin: 0 }}>
+          <h3>Portfolio evidence</h3>
+          {profile.portfolio_submissions.length === 0 ? <p className="muted small">None.</p> :
+            profile.portfolio_submissions.map((p) => (
+              <div key={p.id} className="portfoliorow">
+                <div className="portfoliotop"><FileText size={13} className="lic" /><b>{p.title}</b></div>
+                <p className="muted small">{p.description}</p>
+                <p className="muted small">Submitted by {p.submitted_by_role}, {new Date(p.submitted_at).toLocaleDateString()}{p.external_reference ? ". Reference: " + p.external_reference : ""}</p>
+              </div>
+            ))}
         </section>
       </div>
 
@@ -393,7 +427,24 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
   );
 }
 
-/* ============================== Nominate ================================= */
+/* =========================== Refer a learner ============================= */
+function ReferTab() {
+  const [sub, setSub] = useState<ReferSub>("nominate");
+  return (
+    <div>
+      <SubNav<ReferSub>
+        value={sub} onChange={setSub}
+        items={[
+          { id: "nominate", label: "Nomination", icon: <UserPlus size={15} className="lic" /> },
+          { id: "portfolio", label: "Portfolio / work sample", icon: <FileText size={15} className="lic" /> },
+        ]}
+      />
+      {sub === "nominate" && <NominateTab />}
+      {sub === "portfolio" && <PortfolioTab />}
+    </div>
+  );
+}
+
 const DRAFT_KEY = "kuza_nomination_draft";
 function NominateTab() {
   const [form, setForm] = useState<ChecklistItem[]>([]);
@@ -488,15 +539,109 @@ function NominateTab() {
   );
 }
 
-/* ========================= Screening questions ========================== */
+/* =============================== Portfolio ================================ */
+function PortfolioTab() {
+  const [schools, setSchools] = useState<SchoolRow[]>([]);
+  const [schoolId, setSchoolId] = useState("");
+  const [role, setRole] = useState<"teacher" | "parent" | "peer">("teacher");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [reference, setReference] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [result, setResult] = useState<{ learnerId: string; submissionId: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    listSchools().then((s) => { setSchools(s); if (s[0]) setSchoolId(s[0].id); }).catch(() => {});
+  }, []);
+
+  async function submit() {
+    setResult(null); setError(null);
+    if (!consent) { setError("Please confirm consent before submitting."); return; }
+    if (!title.trim() || !description.trim()) { setError("A title and a description are required."); return; }
+    setBusy(true);
+    try {
+      const r = await submitPortfolio({
+        school_id: schoolId, submitted_by_role: role, title: title.trim(),
+        description: description.trim(), external_reference: reference.trim() || undefined,
+      });
+      setResult({ learnerId: r.learner_id, submissionId: r.submission_id });
+      setTitle(""); setDescription(""); setReference(""); setConsent(false);
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="formcard">
+      <h2>Submit a portfolio or work sample</h2>
+      <p className="lead">A fourth way a capable child is found: a description of a drawing, story, project, or piece of written work, submitted as supporting evidence. This is evidence for the panel to weigh, not a score, and not a decision.</p>
+
+      <div className="safeguard"><ShieldCheck size={18} className="lic" />
+        <span>Do not enter the learner's name or any medical information. Describe the work itself, for example what the child made, said, or solved, and why it stood out to you.</span></div>
+
+      <div className="field"><label>School
+        <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+          {schools.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>)}
+        </select></label></div>
+      <div className="field"><label>I am a
+        <select value={role} onChange={(e) => setRole(e.target.value as any)}>
+          <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
+          <option value="peer">Peer or classmate</option>
+        </select></label></div>
+      <div className="field"><label>Title
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. A hand-drawn map of the school compound" /></label></div>
+      <div className="field"><label>Description
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What did the child make or do, and what about the thinking behind it stood out?" /></label></div>
+      <div className="field"><label>Reference (optional)
+        <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="A filing note or location for the physical item, not the item itself" /></label></div>
+
+      <label className="consent">
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+        <span>I confirm I have the appropriate consent to submit this as evidence for this child.</span>
+      </label>
+
+      <div className="decisionbar" style={{ marginTop: 16 }}>
+        <button className="advance" disabled={!schoolId || busy} onClick={submit}><Check size={16} className="lic" />Submit portfolio evidence</button>
+      </div>
+
+      {result && (
+        <div className="banner ok"><CircleCheck size={18} className="lic" />
+          <span>Portfolio evidence saved. Tracking id <code>{result.submissionId.slice(0, 8)}</code>. It appears alongside any screening or nomination evidence for the panel to review.</span></div>
+      )}
+      {error && <div className="error">{error}</div>}
+    </div>
+  );
+}
+
+/* ============================== Screening ================================ */
+function ScreeningTab() {
+  const [sub, setSub] = useState<ScreeningSub>("core");
+  return (
+    <div>
+      <SubNav<ScreeningSub>
+        value={sub} onChange={setSub}
+        items={[
+          { id: "core", label: "Core questions", icon: <ListChecks size={15} className="lic" /> },
+          { id: "bonus", label: "Bonus questions", icon: <Layers size={15} className="lic" /> },
+          { id: "try", label: "Try it interactively", icon: <Sparkles size={15} className="lic" /> },
+        ]}
+      />
+      {sub === "core" && <QuestionsTab />}
+      {sub === "bonus" && <BonusQuestionsTab />}
+      {sub === "try" && <TryItTab />}
+    </div>
+  );
+}
+
 function QuestionsTab() {
   const [items, setItems] = useState<ScreeningItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { listItems().then(setItems).catch((e) => { setError(String(e)); setItems([]); }); }, []);
   return (
     <div className="formcard">
-      <h2>The screening questions</h2>
-      <p className="lead">A learner answers these five questions, over WhatsApp, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic.</p>
+      <h2>The core screening questions</h2>
+      <p className="lead">A learner answers these five questions, over WhatsApp, SMS, or USSD, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic. This is the automatic session every screening runs today.</p>
       {error && <div className="error">{error}</div>}
       {items === null ? <div className="loading">Loading questions.</div> : (
         <ol className="questions">
@@ -513,12 +658,52 @@ function QuestionsTab() {
   );
 }
 
+/* ============================ Bonus questions ============================= */
+function BonusQuestionsTab() {
+  const [items, setItems] = useState<BonusItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { listBonusItems().then(setItems).catch((e) => { setError(String(e)); setItems([]); }); }, []);
+  const TIER_LABELS: Record<string, string> = { bonus_off_level: "Off-level (harder)", bonus_creativity: "Creativity" };
+  return (
+    <div className="formcard">
+      <h2>Bonus questions</h2>
+      <p className="lead">Off-level (deliberately harder) items and a creativity item, built as additional evidence for a learner who finishes the core five with room to spare. They exist and are scoreable today, but are not yet wired into the automatic session, a reviewer or a future version of the gateway would need to decide when to offer them.</p>
+      {error && <div className="error">{error}</div>}
+      {items === null ? <div className="loading">Loading bonus questions.</div> : items.length === 0 ? (
+        <p className="muted small">No bonus questions available.</p>
+      ) : (
+        <ol className="questions">
+          {items.map((it) => (
+            <li key={it.id} className="qitem">
+              <div className="cardtop">
+                <span className="qdomain"><DIcon domain={it.domain} size={18} />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
+                <span className="badge awaiting">{TIER_LABELS[it.tier] ?? it.tier}</span>
+              </div>
+              <p className="qen">{it.prompt.en}</p>
+              <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 /* ============================== Try it ==================================== */
+const CHANNEL_LABELS: Record<PreviewChannel, string> = { whatsapp: "WhatsApp", sms: "SMS", ussd: "USSD" };
+const CHANNEL_ICON: Record<PreviewChannel, typeof MessageCircle> = { whatsapp: MessageCircle, sms: MessageSquareText, ussd: Smartphone };
+const CHANNEL_NOTE: Record<PreviewChannel, string> = {
+  whatsapp: "Needs a smartphone and either data or wifi. Real delivery needs Twilio (not yet connected).",
+  sms: "Works on any phone with airtime and signal, no internet or app needed. Real delivery needs a connected SMS provider (not yet connected). Long answers may send as several linked text messages.",
+  ussd: "Works on any phone with signal, no airtime needed at all, the learner dials a shortcode. Synchronous: one screen per reply, and a session times out after inactivity (about 180 seconds on a typical provider), shown here as information only, not a countdown, since the system's untimed accommodation still applies.",
+};
+
 function TryItTab() {
   const [intro, setIntro] = useState<{ en: string; sw: string } | null>(null);
   const [items, setItems] = useState<ScreeningItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lang, setLang] = useState<"en" | "sw">("en");
+  const [channel, setChannel] = useState<PreviewChannel>("whatsapp");
   const [step, setStep] = useState(0); // 0 = intro, 1..N = items, N+1 = done
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState("");
@@ -546,6 +731,8 @@ function TryItTab() {
   const total = items.length;
   const done = step > total;
   const current = !done && step > 0 ? items[step - 1] : null;
+  const isUssd = channel === "ussd";
+  const frame = (text: string) => (isUssd ? (done ? "END " : "CON ") + text : text);
 
   return (
     <div className="formcard tryit">
@@ -554,7 +741,7 @@ function TryItTab() {
           <Mascot src="/mascot.png" size={44} />
           <div>
             <h2>Try the screener</h2>
-            <p className="muted small">A preview of the real questions, at your own pace. You can type or, where your browser supports it, answer by voice. Nothing you type or say here is saved, scored, or sent anywhere.</p>
+            <p className="muted small">A preview of the real questions, at your own pace. Switch channel below to see how WhatsApp, SMS, and USSD actually differ. Nothing you type or say here is saved, scored, or sent anywhere.</p>
           </div>
         </div>
         <div className="langtoggle" role="group" aria-label="Preview language">
@@ -563,6 +750,18 @@ function TryItTab() {
         </div>
       </div>
 
+      <div className="channeltoggle" role="group" aria-label="Preview channel">
+        {(["whatsapp", "sms", "ussd"] as PreviewChannel[]).map((c) => {
+          const I = CHANNEL_ICON[c];
+          return (
+            <button key={c} className={channel === c ? "on" : ""} onClick={() => setChannel(c)}>
+              <I size={15} className="lic" />{CHANNEL_LABELS[c]}
+            </button>
+          );
+        })}
+      </div>
+      <p className="muted small channelnote"><Info size={13} className="lic" />{CHANNEL_NOTE[channel]}</p>
+
       <div className="dots" aria-hidden>
         {Array.from({ length: total }).map((_, i) => {
           const cls = done || i < step - 1 ? "on" : i === step - 1 ? "cur" : "";
@@ -570,42 +769,101 @@ function TryItTab() {
         })}
       </div>
 
-      {step === 0 && (
-        <div className="bubble reveal">
-          <p>{intro[lang]}</p>
-          <button className="advance" onClick={() => setStep(1)}>Start <ArrowRight size={16} className="lic" /></button>
-        </div>
-      )}
-
-      {current && (
-        <div className="bubble reveal" key={current.id}>
-          <span className="qdomain"><DIcon domain={current.domain} size={16} />{DOMAIN_LABELS[current.domain] ?? current.domain}</span>
-          <p className="qtext">{current.prompt[lang]}</p>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={lang === "sw" ? "Andika jibu lako hapa..." : "Type your answer here..."}
-          />
-          <div className="miccontrol">
-            <VoiceMicButton lang={lang} onResult={(t) => setDraft((d) => (d ? d + " " + t : t))} />
+      <div className={"chatarea " + channel}>
+        {step === 0 && (
+          <div className={"bubble reveal" + (isUssd ? " ussdscreen" : "")}>
+            <p>{frame(intro[lang])}</p>
+            <button className="advance" onClick={() => setStep(1)}>Start <ArrowRight size={16} className="lic" /></button>
           </div>
-          <div className="decisionbar">
-            <button className="advance" onClick={() => next(draft)}>
-              {step === total ? "Finish" : "Next"} <ArrowRight size={16} className="lic" />
-            </button>
-            <button onClick={() => next("")}>Skip this one</button>
-          </div>
-        </div>
-      )}
+        )}
 
-      {done && (
-        <div className="bubble reveal donecard">
-          <Mascot src="/mascot-thumb.png" size={72} float />
-          <h3 className="doneheading">Thank you</h3>
-          <p>In a real session, a person on the review panel would read the reasoning behind these answers, not just check them right or wrong. There is still no time limit, no score shown to the learner, and no decision made by AI.</p>
-          <button onClick={restart}><RefreshCw size={16} className="lic" />Try it again</button>
-        </div>
-      )}
+        {current && (
+          <div className={"bubble reveal" + (isUssd ? " ussdscreen" : "")} key={current.id}>
+            <span className="qdomain"><DIcon domain={current.domain} size={16} />{DOMAIN_LABELS[current.domain] ?? current.domain}</span>
+            <p className="qtext">{frame(current.prompt[lang])}</p>
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={lang === "sw" ? "Andika jibu lako hapa..." : "Type your answer here..."}
+            />
+            {channel === "sms" && (
+              <p className={"charcount" + (draft.length > 160 ? " warn" : "")}>{draft.length}/160 characters (a typical single SMS; longer answers send as linked messages)</p>
+            )}
+            {channel === "whatsapp" && (
+              <div className="miccontrol">
+                <VoiceMicButton lang={lang} onResult={(t) => setDraft((d) => (d ? d + " " + t : t))} />
+              </div>
+            )}
+            <div className="decisionbar">
+              <button className="advance" onClick={() => next(draft)}>
+                {step === total ? "Finish" : "Next"} <ArrowRight size={16} className="lic" />
+              </button>
+              <button onClick={() => next("")}>Skip this one</button>
+            </div>
+          </div>
+        )}
+
+        {done && (
+          <div className={"bubble reveal donecard" + (isUssd ? " ussdscreen" : "")}>
+            <Mascot src="/mascot-thumb.png" size={72} float />
+            <h3 className="doneheading">{frame("Thank you")}</h3>
+            <p>In a real session, a person on the review panel would read the reasoning behind these answers, not just check them right or wrong. There is still no time limit, no score shown to the learner, and no decision made by AI.</p>
+            <button onClick={restart}><RefreshCw size={16} className="lic" />Try it again</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ========================= Feature status (About) ========================= */
+type FeatureStatus = "live" | "soon";
+const FEATURES: { label: string; status: FeatureStatus; note: string; icon: typeof BookOpen }[] = [
+  { label: "Screening: WhatsApp, SMS, USSD", status: "live", icon: MessageCircle,
+    note: "Session logic and Claude scoring are live; all three run on mock providers until a real one is connected." },
+  { label: "Nomination", status: "live", icon: UserPlus,
+    note: "Teacher, parent, or peer referral with a twice-exceptional checklist." },
+  { label: "Portfolio / work sample", status: "live", icon: FileText,
+    note: "Description-based evidence, reviewed alongside screening and nomination." },
+  { label: "Bonus questions", status: "live", icon: Layers,
+    note: "Off-level and creativity items exist as preview content, not yet in the automatic session." },
+  { label: "Human panel review and audit log", status: "live", icon: Gavel,
+    note: "A person decides Advance, Hold, or Decline. Every flag-to-decision path is logged." },
+  { label: "Voice-note answers (this web preview)", status: "live", icon: Mic,
+    note: "Free, browser-based speech-to-text. A real WhatsApp voice note still needs a transcription provider." },
+  { label: "Real WhatsApp and SMS delivery", status: "soon", icon: MessageSquareText,
+    note: "Needs a Twilio account, sender numbers, and approved message templates." },
+  { label: "Real USSD delivery", status: "soon", icon: Smartphone,
+    note: "Needs an Africa's Talking account and a shortcode." },
+  { label: "Voice-note transcription (WhatsApp)", status: "soon", icon: ClipboardList,
+    note: "Needs a dedicated speech-to-text provider and its own API key. Claude does not transcribe audio." },
+  { label: "School-records / KEMIS integration", status: "soon", icon: BookOpen,
+    note: "Discovery only so far. No confirmed, authorised data route exists yet." },
+];
+
+function FeatureStatusGrid() {
+  return (
+    <div>
+      <h3>What is live now, and what is coming</h3>
+      <div className="statusgrid">
+        {FEATURES.map((f) => {
+          const Icon = f.icon;
+          return (
+            <div className="statuscard" key={f.label}>
+              <div className="statustop">
+                <Icon size={16} className="lic" />
+                <span className={"tag " + f.status}>
+                  {f.status === "live"
+                    ? <><CircleDot size={10} className="lic" />Live</>
+                    : <><Clock size={10} className="lic" />Coming</>}
+                </span>
+              </div>
+              <b>{f.label}</b>
+              <p className="muted small">{f.note}</p>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -619,6 +877,8 @@ function AboutTab() {
     <div className="formcard prose">
       <div className="abouthero"><Mascot src="/mascot-wave.png" size={84} float /><Mascot src="/mascot.png" size={84} /></div>
       <h2>How Kuza Connect works</h2>
+
+      <FeatureStatusGrid />
 
       <div className="aboutflow">
         <div className="abt">
@@ -645,7 +905,7 @@ function AboutTab() {
               <li key={k}><DIcon domain={k} size={20} />{v}</li>
             ))}
           </ul>
-          <p className="muted small" style={{ marginTop: 8 }}>Off-level (harder) items and a creativity item exist as additional evidence content but are not yet part of the automatic session, see the Questions tab.</p>
+          <p className="muted small" style={{ marginTop: 8 }}>Off-level (harder) items and a creativity item exist as additional evidence content but are not yet part of the automatic session, see Screening &gt; Bonus questions.</p>
         </div>
         <div className="abt">
           <h3>How Claude scoring works</h3>
