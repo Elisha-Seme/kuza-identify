@@ -4,7 +4,7 @@ import {
   ShieldCheck, Check, Pause, X, Languages, Info, CircleCheck, Sparkles,
   Calculator, Puzzle, Workflow, Brain, ArrowRight, RefreshCw, Mic, MicOff,
   MessageCircle, MessageSquareText, Smartphone, FileText, Layers, ClipboardList,
-  CircleDot, Clock,
+  CircleDot, Clock, Menu, Star, Search, Users, ClipboardCheck, Lock, Heart, Leaf, Ban,
 } from "lucide-react";
 import {
   BonusItem, ChecklistItem, FlaggedProfile, Health, Metrics, PortfolioSubmissionRow,
@@ -27,10 +27,26 @@ const DOMAIN_ICON: Record<string, typeof BookOpen> = {
   numerical_reasoning: Calculator, verbal_reasoning: Languages,
   pattern_recognition: Puzzle, logical_reasoning: Workflow, working_memory: Brain,
 };
+/** A one-line description of what each domain looks for, restated from the
+ * language already used elsewhere on this page (the lead paragraph, the item
+ * bank) rather than invented, so a scanning reader gets the gist per row. */
+const DOMAIN_TAG: Record<string, string> = {
+  numerical_reasoning: "Solves real-life number problems",
+  verbal_reasoning: "Finds meaning, not just the dictionary answer",
+  pattern_recognition: "Spots a pattern and extends the rule",
+  logical_reasoning: "Reasons through a conditional statement",
+  working_memory: "Recalls and reorders information",
+};
+/** Alternates two of the three brand hues across domain icons so a list of
+ * five doesn't read as one flat block of teal, without adding a new colour. */
+const DOMAIN_COLOR: Record<string, "" | "amber"> = {
+  numerical_reasoning: "amber", verbal_reasoning: "", pattern_recognition: "",
+  logical_reasoning: "", working_memory: "amber",
+};
 function DIcon({ domain, size = 18, chip = false }: { domain: string; size?: number; chip?: boolean }) {
   const I = DOMAIN_ICON[domain] || Brain;
   if (!chip) return <I size={size} className="lic" />;
-  return <span className="iconchip"><I size={size} className="lic" /></span>;
+  return <span className={"iconchip " + (DOMAIN_COLOR[domain] || "")}><I size={size} className="lic" /></span>;
 }
 
 /** Small coloured pill for a decision status, reused everywhere a status is
@@ -132,6 +148,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>("about");
   const [health, setHealth] = useState<Health | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealth(null));
@@ -147,43 +164,74 @@ export function App() {
     { id: "screening", label: "Screening", icon: <ListChecks size={16} className="lic" />, purpose: "The core and bonus questions, and a hands-on preview of WhatsApp, SMS, and USSD." },
   ];
 
+  function selectTab(t: Tab) {
+    setTab(t);
+    setDrawerOpen(false);
+  }
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <Mascot src="/mascot.png" size={52} />
+    <div className="appshell">
+      {drawerOpen && <div className="sidebarbackdrop" onClick={() => setDrawerOpen(false)} />}
+      <aside className={"sidebar" + (drawerOpen ? " open" : "")} aria-label="Main navigation">
+        <div className="sidebarbrand">
+          <Mascot src="/mascot.png" size={44} />
           <div>
             <h1>Kuza Connect</h1>
-            <p className="tagline">Gifted-learner identification for under-resourced schools. The system flags candidates. A reviewer decides every case.</p>
+            <p className="tagline">Gifted-learner identification for under-resourced schools.</p>
           </div>
         </div>
-        {health && (
-          <div className="provider">
-            <span className="grp"><span className={"dot " + (health.llm_scoring === "live" ? "live" : "mock")} />
-              Scoring: <strong>{health.llm_scoring === "live" ? "Live Claude" : "Demo scorer"}</strong></span>
-            <span className="grp"><span className="dot mock" />
-              WhatsApp: <strong>{health.whatsapp_provider === "mock" ? "Not connected" : health.whatsapp_provider}</strong></span>
-          </div>
-        )}
-      </header>
+        <nav className="sidebarnav" aria-label="Sections">
+          {TABS.map((t) => (
+            <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => selectTab(t.id)}>
+              {t.icon}{t.label}
+            </button>
+          ))}
+        </nav>
+        <p className="sidebarfoot">Phase 0 pilot. The system flags candidates. A reviewer decides every case.</p>
+      </aside>
 
-      {offline && <div className="offline">You are offline. Showing what is already loaded. Reconnect to refresh.</div>}
+      <div className="mainarea">
+        <div className="app">
+          <header className="topbar">
+            <div className="brand">
+              <button className="menubtn" aria-label="Open navigation" onClick={() => setDrawerOpen(true)}>
+                <Menu size={18} className="lic" />
+              </button>
+              <Mascot src="/mascot.png" size={40} />
+              <div>
+                <h1>Kuza Connect</h1>
+                <p className="tagline">Gifted-learner identification for under-resourced schools.</p>
+              </div>
+            </div>
+            {health && (
+              <div className="provider">
+                <span className="grp"><span className={"dot " + (health.llm_scoring === "live" ? "live" : "mock")} />
+                  Scoring: <strong>{health.llm_scoring === "live" ? "Live Claude" : "Demo scorer"}</strong></span>
+                <span className="grp"><span className="dot mock" />
+                  WhatsApp: <strong>{health.whatsapp_provider === "mock" ? "Not connected" : health.whatsapp_provider}</strong></span>
+              </div>
+            )}
+          </header>
 
-      <nav className="tabs" aria-label="Sections">
-        {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => setTab(t.id)}>
-            {t.icon}{t.label}
-          </button>
-        ))}
-      </nav>
-      <p className="tabpurpose">{TABS.find((t) => t.id === tab)?.purpose}</p>
+          {offline && <div className="offline">You are offline. Showing what is already loaded. Reconnect to refresh.</div>}
 
-      <main className="content" key={tab}>
-        {tab === "about" && <AboutTab />}
-        {tab === "review" && <ReviewTab health={health} />}
-        {tab === "refer" && <ReferTab />}
-        {tab === "screening" && <ScreeningTab />}
-      </main>
+          <nav className="tabs" aria-label="Sections">
+            {TABS.map((t) => (
+              <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => setTab(t.id)}>
+                {t.icon}{t.label}
+              </button>
+            ))}
+          </nav>
+          <p className="tabpurpose">{TABS.find((t) => t.id === tab)?.purpose}</p>
+
+          <main className="content" key={tab}>
+            {tab === "about" && <AboutTab />}
+            {tab === "review" && <ReviewTab health={health} />}
+            {tab === "refer" && <ReferTab />}
+            {tab === "screening" && <ScreeningTab />}
+          </main>
+        </div>
+      </div>
     </div>
   );
 }
@@ -526,58 +574,108 @@ function NominateTab() {
     } catch (e) { setError(String(e)); }
   }
 
+  const strengths = form.filter((c) => !c.amber_flag);
+  const signs = form.filter((c) => c.amber_flag);
+
   return (
     <div>
       <div className="pageheader">
         <h2 className="pagetitle">Nominate a child</h2>
         <p className="lead">A teacher or parent refers a learner who seems capable. Marked items are twice-exceptional signs (gifted, but also struggling in a way that hides it). This is a referral for screening, not a diagnosis.</p>
       </div>
-      <div className="formcard">
-      <div className="safeguard"><ShieldCheck size={18} className="lic" />
-        <span>Do not enter the learner’s name or any medical information. Refer only learners you teach or are guardian to. A referral invites the learner to a short screening. A human panel reviews everything before any decision.</span></div>
 
-      <div className="field"><label>School
-        <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
-          {schools.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>)}
-        </select></label></div>
-      <div className="field"><label>I am a
-        <select value={role} onChange={(e) => setRole(e.target.value as any)}>
-          <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
-          <option value="peer">Peer or classmate</option>
-        </select></label></div>
-      {role === "peer" && (
-        <div className="banner info small">A peer nomination is shown to the panel as lower-confidence context, alongside any teacher or parent evidence. It cannot advance a learner on its own, and it works best when a teacher can confirm it.</div>
-      )}
-      <div className="field"><label>Approximate class or age range (optional)
-        <input value={ageRange} onChange={(e) => setAgeRange(e.target.value)} placeholder="e.g. Grade 4, or about 9 to 10 years" /></label></div>
+      <div className="formsplit">
+        <div className="formcard">
+          <div className="safeguard"><ShieldCheck size={18} className="lic" />
+            <span>Do not enter the learner’s name or any medical information. Refer only learners you teach or are guardian to. A referral invites the learner to a short screening. A human panel reviews everything before any decision.</span></div>
 
-      <div className="checklist">
-        {form.map((c) => (
-          <label key={c.key} className={"check " + (c.amber_flag ? "amber" : "")}>
-            <input type="checkbox" checked={!!answers[c.key]} onChange={(e) => setAnswers({ ...answers, [c.key]: e.target.checked })} />
-            <span>{c.amber_flag && <TriangleAlert size={14} className="lic" style={{ color: "var(--amber)" }} />} {c.prompt_en}</span>
-          </label>
-        ))}
-      </div>
+          <div className="stepsection">
+            <div className="stepheading"><span className="stepnum">1</span>Context</div>
+            <p className="stephint">Tell us a bit about the learning context.</p>
+            <div className="field"><label>School
+              <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+                {schools.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>)}
+              </select></label></div>
+            <div className="field"><label>I am a
+              <select value={role} onChange={(e) => setRole(e.target.value as any)}>
+                <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
+                <option value="peer">Peer or classmate</option>
+              </select></label></div>
+            {role === "peer" && (
+              <div className="banner info small">A peer nomination is shown to the panel as lower-confidence context, alongside any teacher or parent evidence. It cannot advance a learner on its own, and it works best when a teacher can confirm it.</div>
+            )}
+            <div className="field"><label>Approximate class or age range (optional)
+              <input value={ageRange} onChange={(e) => setAgeRange(e.target.value)} placeholder="e.g. Grade 4, or about 9 to 10 years" /></label></div>
+          </div>
 
-      <div className="field"><label>Anything you have observed (optional, no names)
-        <textarea value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="e.g. explains ideas well aloud but freezes on written tests" /></label></div>
+          <div className="stepsection">
+            <div className="stepheading"><span className="stepnum">2</span>Observations</div>
+            <p className="stephint">Select the signs you have noticed. These can indicate strong potential, especially in combination.</p>
+            <div className="checkgroups">
+              <div className="checkgroup">
+                <div className="checkgrouphead"><Star size={16} className="lic" /><b>Strengths</b></div>
+                <p className="checkhint">Ways the learner shows high potential.</p>
+                <div className="checklist">
+                  {strengths.map((c) => (
+                    <label key={c.key} className="check">
+                      <input type="checkbox" checked={!!answers[c.key]} onChange={(e) => setAnswers({ ...answers, [c.key]: e.target.checked })} />
+                      <span>{c.prompt_en}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="checkgroup amber">
+                <div className="checkgrouphead"><TriangleAlert size={16} className="lic" /><b>Possible uneven profile signs</b></div>
+                <p className="checkhint">Sometimes high potential sits alongside a challenge that hides it.</p>
+                <div className="checklist">
+                  {signs.map((c) => (
+                    <label key={c.key} className="check amber">
+                      <input type="checkbox" checked={!!answers[c.key]} onChange={(e) => setAnswers({ ...answers, [c.key]: e.target.checked })} />
+                      <span>{c.prompt_en}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="field"><label>Anything else you have observed (optional, no names)
+              <textarea value={observation} onChange={(e) => setObservation(e.target.value)} placeholder="e.g. explains ideas well aloud but freezes on written tests" /></label></div>
+          </div>
 
-      <label className="consent">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-        <span>I confirm I have the appropriate consent to nominate this child for screening.</span>
-      </label>
+          <div className="stepsection">
+            <div className="stepheading"><span className="stepnum">3</span>Consent and submit</div>
+            <label className="consent">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>I confirm I have the appropriate consent to nominate this child for screening.</span>
+            </label>
 
-      <div className="decisionbar" style={{ marginTop: 16 }}>
-        <button className="advance" disabled={!schoolId || !consent} onClick={submit}><Check size={16} className="lic" />Submit nomination</button>
-        <button onClick={saveDraft}>Save draft</button>
-      </div>
+            <div className="decisionbar" style={{ marginTop: 16 }}>
+              <button className="advance" disabled={!schoolId || !consent} onClick={submit}><Check size={16} className="lic" />Submit nomination</button>
+              <button onClick={saveDraft}>Save draft</button>
+            </div>
 
-      {result && (
-        <div className="banner ok"><CircleCheck size={18} className="lic" />
-          <span>Nomination saved. Twice-exceptional signs ticked: <b>{result.amber}</b>. Tracking id <code>{result.id.slice(0, 8)}</code>. The learner now awaits screening before the panel records a decision.</span></div>
-      )}
-      {error && <div className="error">{error}</div>}
+            {result && (
+              <div className="banner ok"><CircleCheck size={18} className="lic" />
+                <span>Nomination saved. Twice-exceptional signs ticked: <b>{result.amber}</b>. Tracking id <code>{result.id.slice(0, 8)}</code>. The learner now awaits screening before the panel records a decision.</span></div>
+            )}
+            {error && <div className="error">{error}</div>}
+          </div>
+        </div>
+
+        <div className="infostack">
+          <div className="infocard teal">
+            <div className="infocardhead"><Users size={16} className="lic" />What happens next</div>
+            <ul className="infosteps">
+              <li><span className="stepnum">1</span><span>A human panel reviews your nomination alongside any other evidence for this school.</span></li>
+              <li><span className="stepnum">2</span><span>If appropriate, the learner is invited to a short screening, over WhatsApp, SMS, or USSD.</span></li>
+              <li><span className="stepnum">3</span><span>The panel weighs all the evidence, screening and nomination together, before deciding.</span></li>
+              <li><span className="stepnum">4</span><span>The panel records Advance, Hold, or Decline in the review queue. This is a referral, not a diagnosis.</span></li>
+            </ul>
+          </div>
+          <div className="infocard amber">
+            <div className="infocardhead"><ShieldCheck size={16} className="lic" />Consent required</div>
+            <p className="small" style={{ margin: 0 }}>You confirm you have the appropriate consent to nominate this child before the form can be submitted.</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -622,40 +720,68 @@ function PortfolioTab() {
         <h2 className="pagetitle">Submit a portfolio or work sample</h2>
         <p className="lead">A fourth way a capable child is found: a description of a drawing, story, project, or piece of written work, submitted as supporting evidence. This is evidence for the panel to weigh, not a score, and not a decision.</p>
       </div>
-      <div className="formcard">
-      <div className="safeguard"><ShieldCheck size={18} className="lic" />
-        <span>Do not enter the learner's name or any medical information. Describe the work itself, for example what the child made, said, or solved, and why it stood out to you.</span></div>
 
-      <div className="field"><label>School
-        <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
-          {schools.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>)}
-        </select></label></div>
-      <div className="field"><label>I am a
-        <select value={role} onChange={(e) => setRole(e.target.value as any)}>
-          <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
-          <option value="peer">Peer or classmate</option>
-        </select></label></div>
-      <div className="field"><label>Title
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. A hand-drawn map of the school compound" /></label></div>
-      <div className="field"><label>Description
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What did the child make or do, and what about the thinking behind it stood out?" /></label></div>
-      <div className="field"><label>Reference (optional)
-        <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="A filing note or location for the physical item, not the item itself" /></label></div>
+      <div className="formsplit">
+        <div className="formcard">
+          <div className="safeguard"><ShieldCheck size={18} className="lic" />
+            <span>Do not enter the learner's name or any medical information. Describe the work itself, for example what the child made, said, or solved, and why it stood out to you.</span></div>
 
-      <label className="consent">
-        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-        <span>I confirm I have the appropriate consent to submit this as evidence for this child.</span>
-      </label>
+          <div className="stepsection">
+            <div className="stepheading"><span className="stepnum">1</span>Context</div>
+            <div className="field"><label>School
+              <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)}>
+                {schools.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>)}
+              </select></label></div>
+            <div className="field"><label>I am a
+              <select value={role} onChange={(e) => setRole(e.target.value as any)}>
+                <option value="teacher">Teacher</option><option value="parent">Parent or guardian</option>
+                <option value="peer">Peer or classmate</option>
+              </select></label></div>
+          </div>
 
-      <div className="decisionbar" style={{ marginTop: 16 }}>
-        <button className="advance" disabled={!schoolId || busy} onClick={submit}><Check size={16} className="lic" />Submit portfolio evidence</button>
-      </div>
+          <div className="stepsection">
+            <div className="stepheading"><span className="stepnum">2</span>The evidence</div>
+            <div className="field"><label>Title
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. A hand-drawn map of the school compound" /></label></div>
+            <div className="field"><label>Description
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What did the child make or do, and what about the thinking behind it stood out?" /></label></div>
+            <div className="field"><label>Reference (optional)
+              <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="A filing note or location for the physical item, not the item itself" /></label></div>
+          </div>
 
-      {result && (
-        <div className="banner ok"><CircleCheck size={18} className="lic" />
-          <span>Portfolio evidence saved. Tracking id <code>{result.submissionId.slice(0, 8)}</code>. It appears alongside any screening or nomination evidence for the panel to review.</span></div>
-      )}
-      {error && <div className="error">{error}</div>}
+          <div className="stepsection">
+            <div className="stepheading"><span className="stepnum">3</span>Consent and submit</div>
+            <label className="consent">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>I confirm I have the appropriate consent to submit this as evidence for this child.</span>
+            </label>
+
+            <div className="decisionbar" style={{ marginTop: 16 }}>
+              <button className="advance" disabled={!schoolId || busy} onClick={submit}><Check size={16} className="lic" />Submit portfolio evidence</button>
+            </div>
+
+            {result && (
+              <div className="banner ok"><CircleCheck size={18} className="lic" />
+                <span>Portfolio evidence saved. Tracking id <code>{result.submissionId.slice(0, 8)}</code>. It appears alongside any screening or nomination evidence for the panel to review.</span></div>
+            )}
+            {error && <div className="error">{error}</div>}
+          </div>
+        </div>
+
+        <div className="infostack">
+          <div className="infocard teal">
+            <div className="infocardhead"><ClipboardCheck size={16} className="lic" />What happens next</div>
+            <ul className="infosteps">
+              <li><span className="stepnum">1</span><span>Your description is saved as evidence for this learner, alongside any screening or nomination.</span></li>
+              <li><span className="stepnum">2</span><span>A human panel weighs it together with the rest of the evidence.</span></li>
+              <li><span className="stepnum">3</span><span>The panel records Advance, Hold, or Decline. A portfolio alone is not a score and not a decision.</span></li>
+            </ul>
+          </div>
+          <div className="infocard amber">
+            <div className="infocardhead"><ShieldCheck size={16} className="lic" />Consent required</div>
+            <p className="small" style={{ margin: 0 }}>You confirm you have the appropriate consent to submit this evidence before the form can be sent.</p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -690,16 +816,31 @@ function QuestionsTab() {
       <div className="pageheader">
         <h2 className="pagetitle">The core screening questions</h2>
         <p className="lead">A learner answers these five questions, over WhatsApp, SMS, or USSD, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic. This is the automatic session every screening runs today.</p>
+        {items && (
+          <div className="qmeta">
+            <div className="qmetaitem"><FileText size={16} className="lic" style={{ color: "var(--teal)" }} />
+              <div><b>{items.length} questions</b><span className="muted"> Short and focused</span></div></div>
+            <div className="qmetaitem"><Clock size={16} className="lic" style={{ color: "var(--amber)" }} />
+              <div><b>Untimed</b><span className="muted"> Take your time</span></div></div>
+            <div className="qmetaitem"><Sparkles size={16} className="lic" style={{ color: "var(--teal)" }} />
+              <div><b>Reasoning over arithmetic</b><span className="muted"> We value how you think</span></div></div>
+          </div>
+        )}
       </div>
       <div className="formcard">
       {error && <div className="error">{error}</div>}
       {items === null ? <div className="loading">Loading questions.</div> : (
         <ol className="questions">
-          {items.map((it) => (
+          {items.map((it, i) => (
             <li key={it.id} className="qitem">
-              <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
-              <p className="qen">{it.prompt.en}</p>
-              <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
+              <div className="qitemrow">
+                <span className="qnum">{i + 1}</span>
+                <div className="qitembody">
+                  <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}<span className="qtag">{DOMAIN_TAG[it.domain]}</span></span>
+                  <p className="qen">{it.prompt.en}</p>
+                  <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
+                </div>
+              </div>
             </li>
           ))}
         </ol>
@@ -727,14 +868,19 @@ function BonusQuestionsTab() {
         <p className="muted small">No bonus questions available.</p>
       ) : (
         <ol className="questions">
-          {items.map((it) => (
+          {items.map((it, i) => (
             <li key={it.id} className="qitem">
-              <div className="cardtop">
-                <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}</span>
-                <span className="badge awaiting">{TIER_LABELS[it.tier] ?? it.tier}</span>
+              <div className="qitemrow">
+                <span className="qnum">{i + 1}</span>
+                <div className="qitembody">
+                  <div className="cardtop">
+                    <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}<span className="qtag">{DOMAIN_TAG[it.domain]}</span></span>
+                    <span className="badge awaiting">{TIER_LABELS[it.tier] ?? it.tier}</span>
+                  </div>
+                  <p className="qen">{it.prompt.en}</p>
+                  <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
+                </div>
               </div>
-              <p className="qen">{it.prompt.en}</p>
-              <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
             </li>
           ))}
         </ol>
@@ -804,6 +950,16 @@ function TryItTab() {
           <button className={lang === "sw" ? "on" : ""} onClick={() => setLang("sw")}>SW</button>
         </div>
       </div>
+
+      <div className="calloutrow warm">
+        <div className="calloutitem"><Ban size={20} className="lic" style={{ color: "var(--amber)" }} />
+          <div><b>No timer</b><span className="muted"> Take your time</span></div></div>
+        <div className="calloutitem"><Heart size={20} className="lic" style={{ color: "var(--amber)" }} />
+          <div><b>Nothing is saved or scored</b><span className="muted"> This is just a practice</span></div></div>
+        <div className="calloutitem"><Leaf size={20} className="lic" style={{ color: "var(--amber)" }} />
+          <div><b>A safe space to try</b><span className="muted"> No right-or-wrong pressure</span></div></div>
+      </div>
+
       <div className="formcard tryit">
 
       <div className="channeltoggle" role="group" aria-label="Preview channel">
@@ -818,11 +974,14 @@ function TryItTab() {
       </div>
       <p className="muted small channelnote"><Info size={13} className="lic" />{CHANNEL_NOTE[channel]}</p>
 
-      <div className="dots" aria-hidden>
-        {Array.from({ length: total }).map((_, i) => {
-          const cls = done || i < step - 1 ? "on" : i === step - 1 ? "cur" : "";
-          return <span key={i} className={"dot2 " + cls} />;
-        })}
+      <div className="progressrow">
+        <span className="progresslabel">{done ? total : Math.max(step, 1)} of {total}</span>
+        <div className="dots" aria-hidden>
+          {Array.from({ length: total }).map((_, i) => {
+            const cls = done || i < step - 1 ? "on" : i === step - 1 ? "cur" : "";
+            return <span key={i} className={"dot2 " + cls} />;
+          })}
+        </div>
       </div>
 
       <div className={"chatarea " + channel}>
@@ -936,6 +1095,32 @@ function AboutTab() {
         <h2 className="pagetitle">How Kuza Connect works</h2>
         <div className="abouthero"><Mascot src="/mascot-wave.png" size={84} float /><Mascot src="/mascot.png" size={84} /></div>
       </div>
+
+      <div className="calloutrow">
+        <div className="calloutitem"><Users size={20} className="lic" style={{ color: "var(--teal)" }} />
+          <div><b>Human-reviewed</b><span className="muted"> A person decides every case</span></div></div>
+        <div className="calloutitem"><ShieldCheck size={20} className="lic" style={{ color: "var(--teal)" }} />
+          <div><b>No diagnosis</b><span className="muted"> Does not diagnose or label</span></div></div>
+        <div className="calloutitem"><Lock size={20} className="lic" style={{ color: "var(--teal)" }} />
+          <div><b>Privacy safe</b><span className="muted"> No name or health data stored</span></div></div>
+      </div>
+
+      <h3>The process in four steps</h3>
+      <div className="processrow">
+        {[
+          { n: 1, icon: Search, title: "Find", text: "Screening, nomination, and portfolio evidence identify children who may have high potential." },
+          { n: 2, icon: FileText, title: "Understand", text: "Evidence from WhatsApp, SMS, or USSD is analysed across five reasoning domains." },
+          { n: 3, icon: Users, title: "Review", text: "A trained reviewer reads the evidence and flags in the panel review queue." },
+          { n: 4, icon: CircleCheck, title: "Decide", text: "The reviewer decides Advance, Hold, or Decline on every case." },
+        ].map((s) => (
+          <div className="processcard" key={s.n}>
+            <div className="pctop"><span className="stepnum amber">{s.n}</span><s.icon size={18} className="lic" style={{ color: "var(--teal)" }} /></div>
+            <b>{s.title}</b>
+            <p className="muted small">{s.text}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="formcard prose">
       <FeatureStatusGrid />
 
