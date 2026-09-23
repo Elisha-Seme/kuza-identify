@@ -7,3 +7,6 @@ pydantic-settings==2.6.1
 anthropic==0.40.0
 openpyxl==3.1.5
 python-multipart==0.0.19
+# Used directly by the real Twilio provider adapters (already a transitive
+# dependency of anthropic, pinned explicitly since we now call it ourselves).
+httpx==0.28.1

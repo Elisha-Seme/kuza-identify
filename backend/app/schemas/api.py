@@ -76,3 +76,20 @@ class DecisionRequest(BaseModel):
     reviewer_id: str
     decision: PanelDecision
     notes: str | None = None
+
+
+# --- Chatbot --------------------------------------------------------------------
+class ChatTurnPayload(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list[ChatTurnPayload] = []
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    suggestions: list[str]
+    live: bool

@@ -32,11 +32,42 @@ class Settings(BaseSettings):
         default="kuza-scoring-v1", alias="SCORING_PROMPT_VERSION"
     )
 
-    # --- WhatsApp provider (Section 6) --------------------------------------
-    # "mock" is the only implementation wired for Phase 0. The interface is
-    # clean so africastalking / twilio can be dropped in without touching the
-    # Screening Gateway.
+    # --- WhatsApp / SMS / USSD providers (Section 6) ------------------------
+    # "mock" (default) needs no credentials. Set to "twilio" (WhatsApp/SMS) or
+    # "africastalking" (USSD) once real credentials are configured below —
+    # the Screening Gateway never changes; only the provider class swaps.
     whatsapp_provider: str = Field(default="mock", alias="WHATSAPP_PROVIDER")
+    sms_provider: str = Field(default="mock", alias="SMS_PROVIDER")
+    ussd_provider: str = Field(default="mock", alias="USSD_PROVIDER")
+
+    # The exact public HTTPS base URL this API is reachable at (e.g.
+    # "https://kuza-identify-api.vercel.app"), no trailing slash. Required to
+    # verify Twilio's X-Twilio-Signature, which is computed over the exact
+    # URL Twilio was configured to call — a request's own Host header can't
+    # be trusted behind a proxy/serverless edge.
+    public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
+
+    # Twilio (WhatsApp + SMS). See console.twilio.com for the Account SID and
+    # Auth Token; the WhatsApp sender is a Twilio WhatsApp-enabled number in
+    # "whatsapp:+1415..." form (the sandbox number while testing), the SMS
+    # sender is a plain Twilio phone number in "+1415..." form.
+    twilio_account_sid: str | None = Field(default=None, alias="TWILIO_ACCOUNT_SID")
+    twilio_auth_token: str | None = Field(default=None, alias="TWILIO_AUTH_TOKEN")
+    twilio_whatsapp_from: str | None = Field(default=None, alias="TWILIO_WHATSAPP_FROM")
+    twilio_sms_from: str | None = Field(default=None, alias="TWILIO_SMS_FROM")
+
+    # Africa's Talking (USSD). They do not cryptographically sign webhooks, so
+    # USSD_WEBHOOK_SECRET is a shared secret WE choose and append as a query
+    # string on the callback URL registered in the AT dashboard
+    # (".../webhook/ussd?key=...") — checked on every inbound callback.
+    africastalking_username: str | None = Field(default=None, alias="AFRICASTALKING_USERNAME")
+    africastalking_api_key: str | None = Field(default=None, alias="AFRICASTALKING_API_KEY")
+    ussd_webhook_secret: str | None = Field(default=None, alias="USSD_WEBHOOK_SECRET")
+
+    # --- Dashboard chatbot ---------------------------------------------------
+    # Reuses ANTHROPIC_API_KEY above; no separate credential. Same cost-driven
+    # model default as scoring, override independently if needed.
+    chatbot_model: str = Field(default="claude-haiku-4-5", alias="CHATBOT_MODEL")
 
     # --- Voice-note transcription (Section 6 style: interface only) --------
     # "none" (default) => NotConfiguredTranscriptionProvider, fails loudly.

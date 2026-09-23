@@ -70,6 +70,9 @@ export interface Health {
   status: string;
   llm_scoring: string;
   whatsapp_provider: string;
+  sms_provider?: string;
+  ussd_provider?: string;
+  chatbot?: string;
 }
 export async function getHealth(): Promise<Health> {
   const r = await fetch(`${BASE}/health`);
@@ -196,6 +199,33 @@ export async function submitPortfolio(body: {
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`POST /portfolio -> ${r.status}`);
+  return r.json();
+}
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  suggestions: string[];
+  live: boolean;
+}
+
+export async function getChatStarters(): Promise<string[]> {
+  const r = await fetch(`${BASE}/chatbot/starters`);
+  if (!r.ok) throw new Error(`GET /chatbot/starters -> ${r.status}`);
+  return r.json();
+}
+
+export async function sendChatMessage(message: string, history: ChatTurn[]): Promise<ChatResponse> {
+  const r = await fetch(`${BASE}/chatbot/message`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, history }),
+  });
+  if (!r.ok) throw new Error(`POST /chatbot/message -> ${r.status}`);
   return r.json();
 }
 

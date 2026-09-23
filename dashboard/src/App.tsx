@@ -5,16 +5,17 @@ import {
   Calculator, Puzzle, Workflow, Brain, ArrowRight, RefreshCw, Mic, MicOff,
   MessageCircle, MessageSquareText, Smartphone, FileText, Layers, ClipboardList,
   CircleDot, Clock, Menu, Star, Search, Users, ClipboardCheck, Lock, Heart, Leaf, Ban,
+  Bot, Send,
 } from "lucide-react";
 import {
-  BonusItem, ChecklistItem, FlaggedProfile, Health, Metrics, PortfolioSubmissionRow,
+  BonusItem, ChatTurn, ChecklistItem, FlaggedProfile, Health, Metrics, PortfolioSubmissionRow,
   ScreeningItem, SchoolRow,
-  getHealth, getIntro, getMetrics, getNominationForm, listBonusItems, listFlagged,
-  listItems, listSchools, recordDecision, runDemoScreening, submitNomination,
-  submitPortfolio,
+  getChatStarters, getHealth, getIntro, getMetrics, getNominationForm, listBonusItems,
+  listFlagged, listItems, listSchools, recordDecision, runDemoScreening, sendChatMessage,
+  submitNomination, submitPortfolio,
 } from "./api";
 
-type Tab = "about" | "review" | "refer" | "screening";
+type Tab = "about" | "review" | "refer" | "screening" | "chatbot";
 type ReferSub = "nominate" | "portfolio";
 type ScreeningSub = "core" | "bonus" | "try";
 type PreviewChannel = "whatsapp" | "sms" | "ussd";
@@ -162,6 +163,7 @@ export function App() {
     { id: "review", label: "Panel review", icon: <Gavel size={16} className="lic" />, purpose: "Review flagged learners and record decisions." },
     { id: "refer", label: "Refer a learner", icon: <UserPlus size={16} className="lic" />, purpose: "Nominate a child, or submit a portfolio / work sample as evidence." },
     { id: "screening", label: "Screening", icon: <ListChecks size={16} className="lic" />, purpose: "The core and bonus questions, and a hands-on preview of WhatsApp, SMS, and USSD." },
+    { id: "chatbot", label: "Ask Kuza", icon: <Bot size={16} className="lic" />, purpose: "Ask questions about what Kuza Connect is and how it works." },
   ];
 
   function selectTab(t: Tab) {
@@ -229,6 +231,7 @@ export function App() {
             {tab === "review" && <ReviewTab health={health} />}
             {tab === "refer" && <ReferTab />}
             {tab === "screening" && <ScreeningTab />}
+            {tab === "chatbot" && <ChatbotTab />}
           </main>
         </div>
       </div>
@@ -1027,6 +1030,100 @@ function TryItTab() {
           </div>
         )}
       </div>
+      </div>
+    </div>
+  );
+}
+
+/* =============================== Chatbot =================================== */
+function ChatbotTab() {
+  const [messages, setMessages] = useState<ChatTurn[]>([]);
+  const [starters, setStarters] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [live, setLive] = useState<boolean | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { getChatStarters().then(setStarters).catch(() => {}); }, []);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages, busy]);
+
+  async function ask(text: string) {
+    const question = text.trim();
+    if (!question || busy) return;
+    setError(null); setDraft(""); setSuggestions([]); setBusy(true);
+    const history = messages;
+    setMessages((m) => [...m, { role: "user", content: question }]);
+    try {
+      const r = await sendChatMessage(question, history);
+      setMessages((m) => [...m, { role: "assistant", content: r.reply }]);
+      setSuggestions(r.suggestions);
+      setLive(r.live);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="pageheader">
+        <h2 className="pagetitle">Ask Kuza</h2>
+        <p className="lead">A conversational guide to what Kuza Connect is and how it works. It only answers questions about the platform, it never sees learner data, and it never makes or influences a decision.</p>
+      </div>
+
+      <div className="formcard chatpage">
+        {live === false && (
+          <div className="banner warn"><TriangleAlert size={16} className="lic" />
+            <span>Demo mode. No live Claude connection, so answers below are a fixed fallback, not the assistant reasoning freely.</span></div>
+        )}
+
+        <div className="chatlog">
+          {messages.length === 0 && (
+            <div className="chatempty">
+              <Mascot src="/mascot.png" size={52} />
+              <p className="muted small">Ask me anything about Kuza Connect, how screening works, who decides, or what it does not do.</p>
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={"chatbubblerow " + m.role}>
+              {m.role === "assistant" && <Mascot src="/mascot.png" size={30} />}
+              <div className={"chatbubble " + m.role}>{m.content}</div>
+            </div>
+          ))}
+          {busy && (
+            <div className="chatbubblerow assistant">
+              <Mascot src="/mascot.png" size={30} />
+              <div className="chatbubble assistant typing"><span /><span /><span /></div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {error && <div className="error">{error}</div>}
+
+        {(messages.length === 0 ? starters : suggestions).length > 0 && !busy && (
+          <div className="chatsuggestions">
+            {(messages.length === 0 ? starters : suggestions).map((s) => (
+              <button key={s} className="chatsuggestion" onClick={() => ask(s)}>{s}</button>
+            ))}
+          </div>
+        )}
+
+        <div className="chatinputrow">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") ask(draft); }}
+            placeholder="Ask about Kuza Connect..."
+            disabled={busy}
+          />
+          <button className="advance" disabled={busy || !draft.trim()} onClick={() => ask(draft)}>
+            <Send size={16} className="lic" />Send
+          </button>
+        </div>
       </div>
     </div>
   );

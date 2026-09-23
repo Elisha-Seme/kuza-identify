@@ -11,12 +11,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.db import get_db
+from app.core.webhook_security import shared_secret_valid, twilio_signature_valid
+from app.providers.sms import get_provider as get_sms_provider
 from app.providers.sms.base import OutboundSms
-from app.providers.sms.mock import get_provider as get_sms_provider
-from app.providers.ussd.mock import get_provider as get_ussd_provider
+from app.providers.ussd import get_provider as get_ussd_provider
+from app.providers.whatsapp import get_provider
 from app.providers.whatsapp.base import OutboundMessage
-from app.providers.whatsapp.mock import get_provider
 from app.schemas.api import (
     SessionStateResponse,
     StartSessionRequest,
@@ -107,37 +109,70 @@ def submit_response(body: SubmitResponseRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/webhook/whatsapp", response_model=dict)
-def whatsapp_webhook(payload: WhatsAppWebhookPayload, db: Session = Depends(get_db)):
-    """Mock WhatsApp inbound. Routes the message to the caller's active session,
-    records it, and pushes the next item back through the (mock) provider."""
-    provider = get_provider()
-    inbound = provider.parse_webhook({"from": payload.from_, "text": payload.text})
+_COMPLETION_TEXT = "Asante! Umemaliza uchunguzi. / Thank you! You've finished the screener."
 
-    session_id = _phone_sessions.get(inbound.from_number)
+
+def _route_whatsapp_inbound(db: Session, session_map: dict[str, str], from_number: str, text: str) -> str:
+    """Shared by the mock JSON webhook and the real Twilio webhook: look up the
+    session bound to this number, submit the response, send the next prompt
+    (or the completion message) back, and return what was sent. Raises
+    HTTPException(404) if no session is bound — callers decide how to
+    present that (the mock route surfaces it directly; the Twilio route
+    replies gracefully instead, see below)."""
+    provider = get_provider()
+    session_id = session_map.get(from_number)
     if session_id is None:
         raise HTTPException(
             status_code=404,
             detail="No active session for this number. Start one via POST /screening/sessions "
             "and register it with POST /screening/webhook/bind.",
         )
-
-    next_prompt = gateway.submit_response(
-        db, session_id=uuid.UUID(session_id), raw_response=inbound.text
-    )
+    next_prompt = gateway.submit_response(db, session_id=uuid.UUID(session_id), raw_response=text)
     db.commit()
+    reply = next_prompt if next_prompt is not None else _COMPLETION_TEXT
+    provider.send(OutboundMessage(to_number=from_number, text=reply))
+    if next_prompt is None:
+        session_map.pop(from_number, None)
+    return reply
 
-    if next_prompt is not None:
-        provider.send(OutboundMessage(to_number=inbound.from_number, text=next_prompt))
-    else:
-        provider.send(
-            OutboundMessage(
-                to_number=inbound.from_number,
-                text="Asante! Umemaliza uchunguzi. / Thank you! You've finished the screener.",
-            )
-        )
-        _phone_sessions.pop(inbound.from_number, None)
-    return {"delivered": provider.last_message_to(inbound.from_number)}
+
+@router.post("/webhook/whatsapp", response_model=dict)
+def whatsapp_webhook(payload: WhatsAppWebhookPayload, db: Session = Depends(get_db)):
+    """Mock WhatsApp inbound (JSON {from, text}) — demo/tests, and the shape
+    the Try It preview drives directly. Real Twilio traffic uses the signed
+    /webhook/whatsapp/twilio route below instead, since Twilio's payload
+    shape (form-encoded From/Body) is different."""
+    provider = get_provider()
+    inbound = provider.parse_webhook({"from": payload.from_, "text": payload.text})
+    reply = _route_whatsapp_inbound(db, _phone_sessions, inbound.from_number, inbound.text)
+    return {"delivered": reply}
+
+
+@router.post("/webhook/whatsapp/twilio", response_class=PlainTextResponse)
+async def whatsapp_webhook_twilio(request: Request, db: Session = Depends(get_db)) -> str:
+    """Real Twilio WhatsApp inbound. Twilio POSTs form-encoded fields and signs
+    the request with X-Twilio-Signature over the exact configured callback
+    URL — verified here before anything is processed."""
+    settings = get_settings()
+    if not settings.twilio_auth_token or not settings.public_base_url:
+        raise HTTPException(503, "Twilio webhook is not configured (TWILIO_AUTH_TOKEN / PUBLIC_BASE_URL).")
+    form = await request.form()
+    params = {k: str(v) for k, v in form.items()}
+    url = settings.public_base_url.rstrip("/") + str(request.url.path)
+    if not twilio_signature_valid(
+        url=url, params=params, signature=request.headers.get("X-Twilio-Signature"),
+        auth_token=settings.twilio_auth_token,
+    ):
+        raise HTTPException(403, "Invalid Twilio signature.")
+
+    provider = get_provider()
+    inbound = provider.parse_webhook(params)
+    try:
+        _route_whatsapp_inbound(db, _phone_sessions, inbound.from_number, inbound.text)
+    except HTTPException:
+        # Unknown number: still 200 to Twilio (it isn't at fault), just no reply sent.
+        pass
+    return ""  # empty TwiML body: the reply already went out via the REST API send() above
 
 
 @router.post("/webhook/bind", response_model=dict)
@@ -150,42 +185,64 @@ def bind_phone(from_: str, session_id: str):
 # ---------------------------------------------------------------------------
 # SMS — the no-smartphone, no-data-plan channel. Works on any phone with
 # airtime/signal, no app or internet needed. Async, sequential text, same
-# shape as WhatsApp, so it reuses the gateway identically. No real Africa's
-# Talking credentials yet — this is the mock provider (Section 6).
+# shape as WhatsApp, so it reuses the gateway identically. Real delivery is
+# Twilio (Section 6), same as WhatsApp; SMS_PROVIDER selects mock or twilio.
 # ---------------------------------------------------------------------------
 _sms_phone_sessions: dict[str, str] = {}
 
 
-@router.post("/webhook/sms", response_model=dict)
-def sms_webhook(payload: WhatsAppWebhookPayload, db: Session = Depends(get_db)):
-    """Mock SMS inbound. Same routing pattern as the WhatsApp webhook."""
+def _route_sms_inbound(db: Session, from_number: str, text: str) -> str:
+    """Mirrors _route_whatsapp_inbound for the SMS provider/session map."""
     provider = get_sms_provider()
-    inbound = provider.parse_webhook({"from": payload.from_, "text": payload.text})
-
-    session_id = _sms_phone_sessions.get(inbound.from_number)
+    session_id = _sms_phone_sessions.get(from_number)
     if session_id is None:
         raise HTTPException(
             status_code=404,
             detail="No active session for this number. Start one via POST /screening/sessions "
             "and register it with POST /screening/webhook/sms/bind.",
         )
-
-    next_prompt = gateway.submit_response(
-        db, session_id=uuid.UUID(session_id), raw_response=inbound.text
-    )
+    next_prompt = gateway.submit_response(db, session_id=uuid.UUID(session_id), raw_response=text)
     db.commit()
+    reply = next_prompt if next_prompt is not None else _COMPLETION_TEXT
+    provider.send(OutboundSms(to_number=from_number, text=reply))
+    if next_prompt is None:
+        _sms_phone_sessions.pop(from_number, None)
+    return reply
 
-    if next_prompt is not None:
-        provider.send(OutboundSms(to_number=inbound.from_number, text=next_prompt))
-    else:
-        provider.send(
-            OutboundSms(
-                to_number=inbound.from_number,
-                text="Asante! Umemaliza uchunguzi. / Thank you! You've finished the screener.",
-            )
-        )
-        _sms_phone_sessions.pop(inbound.from_number, None)
-    return {"delivered": provider.last_message_to(inbound.from_number)}
+
+@router.post("/webhook/sms", response_model=dict)
+def sms_webhook(payload: WhatsAppWebhookPayload, db: Session = Depends(get_db)):
+    """Mock SMS inbound (JSON {from, text}) — demo/tests. Real Twilio SMS
+    traffic uses the signed /webhook/sms/twilio route below."""
+    provider = get_sms_provider()
+    inbound = provider.parse_webhook({"from": payload.from_, "text": payload.text})
+    reply = _route_sms_inbound(db, inbound.from_number, inbound.text)
+    return {"delivered": reply}
+
+
+@router.post("/webhook/sms/twilio", response_class=PlainTextResponse)
+async def sms_webhook_twilio(request: Request, db: Session = Depends(get_db)) -> str:
+    """Real Twilio SMS inbound. Same signature verification as the WhatsApp
+    Twilio route (see there for why the URL, not request.url, is used)."""
+    settings = get_settings()
+    if not settings.twilio_auth_token or not settings.public_base_url:
+        raise HTTPException(503, "Twilio webhook is not configured (TWILIO_AUTH_TOKEN / PUBLIC_BASE_URL).")
+    form = await request.form()
+    params = {k: str(v) for k, v in form.items()}
+    url = settings.public_base_url.rstrip("/") + str(request.url.path)
+    if not twilio_signature_valid(
+        url=url, params=params, signature=request.headers.get("X-Twilio-Signature"),
+        auth_token=settings.twilio_auth_token,
+    ):
+        raise HTTPException(403, "Invalid Twilio signature.")
+
+    provider = get_sms_provider()
+    inbound = provider.parse_webhook(params)
+    try:
+        _route_sms_inbound(db, inbound.from_number, inbound.text)
+    except HTTPException:
+        pass
+    return ""
 
 
 @router.post("/webhook/sms/bind", response_model=dict)
@@ -208,6 +265,11 @@ _ussd_phone_sessions: dict[str, str] = {}
 
 @router.post("/webhook/ussd", response_class=PlainTextResponse)
 async def ussd_webhook(request: Request, db: Session = Depends(get_db)) -> str:
+    settings = get_settings()
+    if not shared_secret_valid(provided=request.query_params.get("key"), expected=settings.ussd_webhook_secret):
+        # Africa's Talking doesn't sign callbacks, so USSD_WEBHOOK_SECRET (checked
+        # against ?key=... on the callback URL) is the substitute. Not set -> skipped.
+        raise HTTPException(403, "Invalid or missing USSD webhook key.")
     provider = get_ussd_provider()
     form = await request.form()
     turn = provider.parse_request(dict(form))

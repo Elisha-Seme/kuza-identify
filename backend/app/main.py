@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, nomination, panel, portfolio, screening
+from app.api import admin, chatbot, nomination, panel, portfolio, screening
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -36,6 +36,7 @@ app.include_router(nomination.router)
 app.include_router(panel.router)
 app.include_router(admin.router)
 app.include_router(portfolio.router)
+app.include_router(chatbot.router)
 
 
 @app.get("/", tags=["meta"])
@@ -62,4 +63,7 @@ def health() -> dict:
         "status": "ok",
         "llm_scoring": "live" if settings.llm_enabled else "mock (no ANTHROPIC_API_KEY)",
         "whatsapp_provider": settings.whatsapp_provider,
+        "sms_provider": settings.sms_provider,
+        "ussd_provider": settings.ussd_provider,
+        "chatbot": "live" if settings.llm_enabled else "mock (no ANTHROPIC_API_KEY)",
     }

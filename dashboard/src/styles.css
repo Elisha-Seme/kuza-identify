@@ -556,6 +556,27 @@ textarea { min-height: 84px; resize: vertical; }
 .qitembody { flex: 1; min-width: 0; }
 .qtag { display: inline-block; background: var(--amber-t); color: var(--amber); font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-left: 10px; }
 
+/* ---- chatbot ---- */
+.chatpage { display: flex; flex-direction: column; min-height: 60vh; }
+.chatlog { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding: 4px 2px 12px; }
+.chatempty { text-align: center; color: var(--muted); padding: 28px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.chatempty p { max-width: 42ch; }
+.chatbubblerow { display: flex; gap: 9px; align-items: flex-end; }
+.chatbubblerow.user { justify-content: flex-end; }
+.chatbubble { max-width: 74%; padding: 11px 14px; border-radius: var(--radius); font-size: 14px; line-height: 1.5; }
+.chatbubble.assistant { background: var(--line-2); color: var(--ink); border-radius: 4px var(--radius) var(--radius) var(--radius); }
+.chatbubble.user { background: var(--teal); color: #fff; border-radius: var(--radius) 4px var(--radius) var(--radius); font-weight: 500; }
+.chatbubble.typing { display: flex; gap: 4px; align-items: center; padding: 14px; }
+.chatbubble.typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: typingdot 1.2s ease infinite; }
+.chatbubble.typing span:nth-child(2) { animation-delay: .2s; }
+.chatbubble.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes typingdot { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+.chatsuggestions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.chatsuggestion { font-size: 13px; padding: 8px 13px; border-radius: 999px; background: var(--teal-t); border-color: rgba(14,116,144,.16); color: var(--teal-deep); font-weight: 500; }
+.chatsuggestion:hover { background: var(--teal-t2); border-color: var(--teal); }
+.chatinputrow { display: flex; gap: 10px; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.chatinputrow input { flex: 1; }
+
 /* ============================ motion ==================================== */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
