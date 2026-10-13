@@ -90,7 +90,7 @@ def test_full_whatsapp_flow_scores_flags_and_decides(db):
     assert start["next_prompt"]  # first item text returned
 
     phone = "254700000001"
-    client.post(f"/screening/webhook/bind?from_={phone}&session_id={session_id}", headers=staff)
+    client.post("/screening/webhook/bind", json={"phone": phone, "session_id": session_id}, headers=staff)
 
     # 5 answers + 1 "OK" for the two-step memory item.
     for i in range(6):

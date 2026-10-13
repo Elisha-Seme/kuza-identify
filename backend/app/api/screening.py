@@ -24,6 +24,7 @@ from app.providers.ussd import get_provider as get_ussd_provider
 from app.providers.whatsapp import get_provider
 from app.providers.whatsapp.base import OutboundMessage
 from app.schemas.api import (
+    BindRequest,
     SessionStateResponse,
     StartSessionRequest,
     SubmitResponseRequest,
@@ -79,9 +80,23 @@ def list_all_items():
 # in-memory dict, which serverless hosts wipe on every cold start, silently
 # dropping live WhatsApp/SMS/USSD sessions). Numbers are stored hashed.
 # ---------------------------------------------------------------------------
+def canonical_phone(number: str) -> str:
+    """One form per phone, so a staff-typed '0712 345 678' matches the
+    '+254712345678' (or 'whatsapp:+254…') a provider delivers. Kenyan
+    national (0…) and bare 9-digit forms become 254…; other numbers are
+    kept as their international digits."""
+    digits = "".join(ch for ch in number if ch.isdigit())
+    if digits.startswith("00"):
+        digits = digits[2:]
+    if len(digits) == 10 and digits.startswith("0"):
+        digits = "254" + digits[1:]
+    elif len(digits) == 9 and digits[0] in "17":
+        digits = "254" + digits
+    return digits
+
+
 def _phone_hash(number: str) -> str:
-    normalised = "".join(ch for ch in number if ch.isdigit())
-    return hashlib.sha256(normalised.encode()).hexdigest()
+    return hashlib.sha256(canonical_phone(number).encode()).hexdigest()
 
 
 def _bind(db: Session, channel: Channel, number: str, session_id: uuid.UUID, staff: Staff | None = None) -> None:
@@ -114,12 +129,8 @@ def _unbind(db: Session, channel: Channel, number: str) -> None:
         db.commit()
 
 
-def _check_bind_scope(db: Session, staff: Staff, session_id: str) -> uuid.UUID:
+def _check_bind_scope(db: Session, staff: Staff, sid: uuid.UUID) -> uuid.UUID:
     """School staff may only bind sessions for learners at their own school."""
-    try:
-        sid = uuid.UUID(session_id)
-    except ValueError:
-        raise HTTPException(422, "session_id must be a UUID.")
     session = db.get(ScreeningSession, sid)
     if session is None:
         raise HTTPException(404, "No such screening session.")
@@ -138,6 +149,14 @@ def _mock_only(provider_setting: str) -> None:
     /twilio routes accept traffic."""
     if provider_setting != "mock":
         raise HTTPException(404, "Not found.")
+
+
+def _opening(db: Session, session_id: uuid.UUID) -> str:
+    """Intro (untimed / skip / hint) + the question currently waiting."""
+    session = db.get(ScreeningSession, session_id)
+    intro = items.session_intro(session.language) if session else None
+    prompt = gateway.next_prompt(db, session_id) or ""
+    return f"{intro}\n\n{prompt}" if intro else prompt
 
 
 def _media_for(db: Session, session_id: uuid.UUID) -> str | None:
@@ -182,7 +201,7 @@ def session_state(session_id: uuid.UUID, db: Session = Depends(get_db)):
     return SessionStateResponse(
         session_id=session_id, status=session.status.value,
         next_prompt=gateway.next_prompt(db, session_id), item_id=item.id if item else None,
-        channel=session.channel.value,
+        channel=session.channel.value, language=session.language.value,
     )
 
 
@@ -282,11 +301,14 @@ async def whatsapp_webhook_twilio(request: Request, db: Session = Depends(get_db
 
 
 @router.post("/webhook/bind", response_model=dict)
-def bind_phone(from_: str, session_id: str, db: Session = Depends(get_db),
+def bind_phone(body: BindRequest, db: Session = Depends(get_db),
                staff: Staff = Depends(require_roles(*SCREENING_OPERATE))):
-    """Staff: route a learner's WhatsApp number to a screening session."""
-    sid = _check_bind_scope(db, staff, session_id)
-    _bind(db, Channel.whatsapp, from_, sid, staff)
+    """Staff: route a learner's WhatsApp number to a screening session, and
+    send them the opening message + first question (with its picture), so
+    the learner's first reply is an answer to something they have seen."""
+    sid = _check_bind_scope(db, staff, body.session_id)
+    _bind(db, Channel.whatsapp, body.phone, sid, staff)
+    get_provider().send(OutboundMessage(to_number="+" + canonical_phone(body.phone), text=_opening(db, sid), media_url=_media_for(db, sid)))
     return {"bound": True, "channel": "whatsapp", "session_id": str(sid)}
 
 
@@ -352,11 +374,13 @@ async def sms_webhook_twilio(request: Request, db: Session = Depends(get_db)) ->
 
 
 @router.post("/webhook/sms/bind", response_model=dict)
-def bind_sms_phone(from_: str, session_id: str, db: Session = Depends(get_db),
+def bind_sms_phone(body: BindRequest, db: Session = Depends(get_db),
                    staff: Staff = Depends(require_roles(*SCREENING_OPERATE))):
-    """Staff: route a learner's SMS number to a screening session."""
-    sid = _check_bind_scope(db, staff, session_id)
-    _bind(db, Channel.sms, from_, sid, staff)
+    """Staff: route a learner's SMS number to a screening session and send the
+    opening message + first question."""
+    sid = _check_bind_scope(db, staff, body.session_id)
+    _bind(db, Channel.sms, body.phone, sid, staff)
+    get_sms_provider().send(OutboundSms(to_number="+" + canonical_phone(body.phone), text=_opening(db, sid)))
     return {"bound": True, "channel": "sms", "session_id": str(sid)}
 
 
@@ -410,9 +434,10 @@ async def ussd_webhook(request: Request, db: Session = Depends(get_db)) -> str:
 
 
 @router.post("/webhook/ussd/bind", response_model=dict)
-def bind_ussd_phone(from_: str, session_id: str, db: Session = Depends(get_db),
+def bind_ussd_phone(body: BindRequest, db: Session = Depends(get_db),
                     staff: Staff = Depends(require_roles(*SCREENING_OPERATE))):
-    """Staff: route a learner's phone to a screening session for USSD."""
-    sid = _check_bind_scope(db, staff, session_id)
-    _bind(db, Channel.ussd, from_, sid, staff)
+    """Staff: route a learner's phone to a screening session for USSD. (USSD
+    shows the first question when the learner dials, so nothing is sent.)"""
+    sid = _check_bind_scope(db, staff, body.session_id)
+    _bind(db, Channel.ussd, body.phone, sid, staff)
     return {"bound": True, "channel": "ussd", "session_id": str(sid)}

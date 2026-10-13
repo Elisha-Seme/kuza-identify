@@ -45,9 +45,9 @@ def _consented_learner(db) -> tuple[School, Learner]:
     ("get", "/panel/audit-log"),
     ("get", "/admin/users"),
     ("post", "/admin/demo-screening"),
-    ("post", f"/screening/webhook/bind?from_=1&session_id={uuid.uuid4()}"),
-    ("post", f"/screening/webhook/sms/bind?from_=1&session_id={uuid.uuid4()}"),
-    ("post", f"/screening/webhook/ussd/bind?from_=1&session_id={uuid.uuid4()}"),
+    ("post", "/screening/webhook/bind"),
+    ("post", "/screening/webhook/sms/bind"),
+    ("post", "/screening/webhook/ussd/bind"),
 ])
 def test_staff_routes_need_sign_in(method, path):
     assert getattr(client, method)(path).status_code == 401
@@ -203,7 +203,7 @@ def test_bindings_survive_restart(db):
     sid = client.post("/screening/sessions", headers=staff,
                       json={"learner_id": str(learner.id), "channel": "whatsapp", "language": "en"}).json()["session_id"]
     digits = "2547" + str(uuid.uuid4().int)[:8]  # unique per run
-    r = client.post(f"/screening/webhook/bind?from_=+{digits}&session_id={sid}", headers=staff)
+    r = client.post("/screening/webhook/bind", json={"phone": f"+{digits}", "session_id": sid}, headers=staff)
     assert r.status_code == 200, r.text
     rows = db.query(ChannelBinding).all()
     assert any(str(r.session_id) == sid for r in rows)
@@ -259,8 +259,8 @@ def test_school_staff_cannot_hijack_another_schools_phone(db):
     sid_a, _, staff_a, _ = _sms_session(db)
     sid_b, _, staff_b, _ = _sms_session(db)  # a different school
     phone = "+2547" + str(uuid.uuid4().int)[:8]
-    assert client.post(f"/screening/webhook/sms/bind?from_={phone}&session_id={sid_a}", headers=staff_a).status_code == 200
-    r = client.post(f"/screening/webhook/sms/bind?from_={phone}&session_id={sid_b}", headers=staff_b)
+    assert client.post("/screening/webhook/sms/bind", json={"phone": phone, "session_id": sid_a}, headers=staff_a).status_code == 200
+    r = client.post("/screening/webhook/sms/bind", json={"phone": phone, "session_id": sid_b}, headers=staff_b)
     assert r.status_code == 409
 
 
@@ -280,3 +280,36 @@ def test_fails_closed_on_vercel_without_secret(monkeypatch):
     with pytest.raises(fastapi.HTTPException) as e:
         auth.issue_token(uuid.uuid4(), StaffRole.reviewer, None)
     assert e.value.status_code == 503
+
+
+# ------------------------------------------------------------------ codex review fixes
+def test_phone_formats_are_canonical():
+    from app.api.screening import canonical_phone
+
+    for n in ("0712 345 678", "+254712345678", "whatsapp:+254712345678", "254-712-345-678", "712345678", "00254712345678"):
+        assert canonical_phone(n) == "254712345678", n
+
+
+def test_bind_sends_first_question_and_matches_provider_format(db):
+    from app.providers.whatsapp import get_provider
+
+    school, learner = _consented_learner(db)
+    staff = _staff_headers(db, StaffRole.school_staff, school.id)
+    sid = client.post("/screening/sessions", headers=staff,
+                      json={"learner_id": str(learner.id), "channel": "whatsapp", "language": "en"}).json()["session_id"]
+    local = "07" + str(uuid.uuid4().int)[:8]  # staff type the national form
+    assert client.post("/screening/webhook/bind", json={"phone": local, "session_id": sid}, headers=staff).status_code == 200
+    first = get_provider().last_message_to("+254" + local[1:])  # sent in E.164
+    assert first and "Look carefully" in first  # the learner actually got the first question
+    # The provider delivers +254…: it must reach the same session.
+    intl = "+254" + local[1:]
+    r = client.post("/screening/webhook/whatsapp", json={"from": intl, "text": "OK"})
+    assert r.status_code == 200 and "2) Cup" in r.json()["delivered"]
+
+
+def test_session_state_reports_language(db):
+    school, learner = _consented_learner(db)
+    staff = _staff_headers(db, StaffRole.school_staff, school.id)
+    sid = client.post("/screening/sessions", headers=staff,
+                      json={"learner_id": str(learner.id), "channel": "web", "language": "sw"}).json()["session_id"]
+    assert client.get(f"/screening/sessions/{sid}").json()["language"] == "sw"

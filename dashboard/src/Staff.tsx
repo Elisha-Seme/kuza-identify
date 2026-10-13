@@ -203,7 +203,9 @@ export function RunSessionTab() {
     try {
       const s = await startSession(learner.trim(), channel, lang);
       if (channel === "web") setLink(`${window.location.origin}/#/play?session=${s.session_id}`);
-      else { await bindPhone(channel, phone, s.session_id); setMsg(`Session started and linked to that phone on ${channel.toUpperCase()}. The learner replies to the Kuza number to begin.`); }
+      else { await bindPhone(channel, phone, s.session_id); setMsg(channel === "ussd"
+        ? "Session started. The learner dials the Kuza USSD code from that phone to begin."
+        : `Session started. The first question has been sent to that phone by ${channel === "sms" ? "SMS" : "WhatsApp"}; the learner just replies.`); }
     } catch (x) { setErr(x instanceof Error ? x.message : String(x)); }
   }
   return (

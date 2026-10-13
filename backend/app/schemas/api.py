@@ -23,6 +23,7 @@ class SessionStateResponse(BaseModel):
     # show its picture and answer controls. None when the session is complete.
     item_id: str | None = None
     channel: str | None = None
+    language: str | None = None
 
 
 class SubmitResponseRequest(BaseModel):
@@ -36,6 +37,13 @@ class SubmitResponseRequest(BaseModel):
 
 
 # --- Mock WhatsApp webhook ----------------------------------------------------
+class BindRequest(BaseModel):
+    """Phone number goes in the authenticated POST body, never the URL, so it
+    can't end up in proxy / platform access logs."""
+    phone: str = Field(min_length=7, max_length=32)
+    session_id: uuid.UUID
+
+
 class WhatsAppWebhookPayload(BaseModel):
     # Shape the mock provider POSTs; a real vendor webhook is normalised by the
     # provider's parse_webhook() before reaching the gateway.

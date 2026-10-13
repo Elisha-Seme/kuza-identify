@@ -125,6 +125,27 @@ export function KuzaPlay({ onExit, standalone = false }: { onExit?: () => void; 
   const [busy, setBusy] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const lastAnswer = useRef<Omit<Answer, "itemId"> | null>(null);
+  const langSynced = useRef(false);
+
+  // Fetch the session's language as soon as a session link opens, so even the
+  // welcome screen is in the language staff chose.
+  useEffect(() => {
+    if (!sessionId) return;
+    fetch(`${BASE}/screening/sessions/${sessionId}`).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (j && !langSynced.current && (j.language === "sw" || j.language === "en")) { setLang(j.language); langSynced.current = true; }
+    }).catch(() => {});
+  }, [sessionId]);
+
+  /** Hints in a recorded session are saved before the child can answer, so
+   * the stored answer always knows how many hints were seen. */
+  async function sessionHint(itemId: string): Promise<boolean> {
+    setBusy(true);
+    const res = await sendToSession("hint", itemId);
+    setBusy(false);
+    if (res === "stale") { await syncSession(); return false; }
+    if (!res) { setSaveErr(lang === "sw" ? "Dokezo halikuhifadhiwa. Jaribu tena." : "That hint didn't save. Please try again."); return false; }
+    return true;
+  }
 
   useEffect(() => { getBank().then(setBank).catch((e) => setErr(String(e))); }, []);
 
@@ -141,6 +162,8 @@ export function KuzaPlay({ onExit, standalone = false }: { onExit?: () => void; 
     if (j.channel && j.channel !== "web") {
       setErr("This session was started for WhatsApp, SMS or USSD, so it has to be answered on the phone. Ask your teacher for a Kuza Play link."); return;
     }
+    // Use the language staff chose for this session (the child can still switch).
+    if (!langSynced.current && (j.language === "sw" || j.language === "en")) { setLang(j.language); langSynced.current = true; }
     if (j.status !== "in_progress" || !j.item_id) { setSessionDone(true); setStage("end"); return; }
     const it = byId[j.item_id];
     if (it) { setQueue([it]); setIdx(0); }
@@ -295,7 +318,7 @@ export function KuzaPlay({ onExit, standalone = false }: { onExit?: () => void; 
         <Puzzle key={queue[idx].id + idx} item={queue[idx]} lang={lang} style={style} autoRead={autoRead}
           position={sessionId ? undefined : `${idx + 1} / ${queue.length}`}
           onBack={sessionId ? undefined : () => setStage("map")}
-          onHint={sessionId ? () => { void sendToSession("hint", queue[idx].id); } : undefined}
+          onHint={sessionId ? () => sessionHint(queue[idx].id) : undefined}
           busy={busy}
           onAnswer={record} />
       )}
@@ -330,7 +353,7 @@ export function KuzaPlay({ onExit, standalone = false }: { onExit?: () => void; 
 /* ------------------------------------------------------------- one puzzle */
 function Puzzle({ item, lang, style, autoRead, position, onBack, onHint, onAnswer, busy = false }: {
   item: BankItem; lang: Lang; style: Style; autoRead: boolean; position?: string; busy?: boolean;
-  onBack?: () => void; onHint?: () => void; onAnswer: (a: Omit<Answer, "itemId">) => void;
+  onBack?: () => void; onHint?: () => Promise<boolean>; onAnswer: (a: Omit<Answer, "itemId">) => void;
 }) {
   const started = useRef(Date.now());
   const [hintsShown, setHintsShown] = useState(0);
@@ -370,13 +393,13 @@ function Puzzle({ item, lang, style, autoRead, position, onBack, onHint, onAnswe
 
   const mic = useListen(lang, (said) => setText((x) => (x ? x + " " : "") + said));
 
-  function hint() {
-    onHint?.();
-    if (hintsShown < (item.hints?.length || 0)) {
-      const h = t(item.hints![hintsShown], lang);
-      setHintsShown(hintsShown + 1);
-      if (autoRead) speak(h, lang);
-    } else setNoMoreHints(true);
+  async function hint() {
+    if (hintsShown >= (item.hints?.length || 0)) { setNoMoreHints(true); return; }
+    // In a recorded session, show the hint only once the server has saved it.
+    if (onHint && !(await onHint())) return;
+    const h = t(item.hints![hintsShown], lang);
+    setHintsShown(hintsShown + 1);
+    if (autoRead) speak(h, lang);
   }
 
   function value(): string {
@@ -481,7 +504,7 @@ function Puzzle({ item, lang, style, autoRead, position, onBack, onHint, onAnswe
           )}
 
           <div className="kp-actions">
-            {(item.hints?.length || 0) > 0 && <button className="kp-soft" onClick={hint}><Lightbulb size={18} /> {t(UI.hint, lang)}</button>}
+            {(item.hints?.length || 0) > 0 && <button className="kp-soft" disabled={busy} onClick={hint}><Lightbulb size={18} /> {t(UI.hint, lang)}</button>}
             <button className="kp-soft" disabled={busy} onClick={() => submit(true)}><SkipForward size={18} /> {t(UI.skip, lang)}</button>
             <button className="kp-go" disabled={!ready || busy} onClick={() => submit(false)}><Check size={20} /> {t(UI.done, lang)}</button>
           </div>

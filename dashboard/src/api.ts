@@ -334,6 +334,7 @@ export async function startSession(learnerId: string, channel: "web" | "whatsapp
 
 export async function bindPhone(channel: "whatsapp" | "sms" | "ussd", phone: string, sessionId: string): Promise<void> {
   const path = channel === "whatsapp" ? "/screening/webhook/bind" : `/screening/webhook/${channel}/bind`;
-  const r = await authed(`${path}?from_=${encodeURIComponent(phone)}&session_id=${sessionId}`, { method: "POST" });
+  // Phone number in the POST body, never the URL (URLs end up in access logs).
+  const r = await authed(path, { method: "POST", body: JSON.stringify({ phone, session_id: sessionId }) });
   if (!r.ok) throw new Error(await detail(r, `Could not link the phone (${r.status})`));
 }
