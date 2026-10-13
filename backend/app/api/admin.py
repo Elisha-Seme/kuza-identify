@@ -10,12 +10,18 @@ route exists so a serverless host with no shell can reach the same state.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, HTTPException, Query
-from sqlalchemy import func, select, text
+import uuid
 
+from fastapi import APIRouter, Depends, Header, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import func, select, text
+from sqlalchemy.orm import Session
+
+from app.core.auth import ADMIN, Staff, current_staff, hash_password, require_roles
 from app.core.config import get_settings
-from app.core.db import Base, SessionLocal, engine
-from app.models import School
+from app.core.db import Base, SessionLocal, engine, get_db
+from app.core.enums import StaffRole
+from app.models import School, StaffUser
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -35,9 +41,26 @@ FOR EACH ROW EXECUTE FUNCTION kuza_reject_mutation();
 """
 
 
+# create_all() creates missing TABLES but never adds new COLUMNS to tables that
+# already exist, so columns added after first deploy are added here, idempotently
+# (mirrors migration 0010). Without this, an older hosted DB breaks on insert.
+_COLUMN_PATCHES_SQL = """
+ALTER TABLE item_responses ADD COLUMN IF NOT EXISTS hints_used INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE item_responses ADD COLUMN IF NOT EXISTS skipped BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE screening_sessions ADD COLUMN IF NOT EXISTS pending_hints INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE screening_sessions ADD COLUMN IF NOT EXISTS pending_stage INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE screening_sessions ADD COLUMN IF NOT EXISTS paused BOOLEAN NOT NULL DEFAULT false;
+"""
+
+
 def _run_init(settings) -> dict:
     # 1. Schema (models are the source of truth; matches the Alembic migrations).
+    #    Also creates tables added after the first deploy (e.g. portfolio
+    #    submissions, staff users), which is what a "500 on /panel/flagged" on
+    #    an older hosted database usually means.
     Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(text(_COLUMN_PATCHES_SQL))
 
     # 2. Immutability trigger.
     with engine.begin() as conn:
@@ -65,7 +88,9 @@ def _run_init(settings) -> dict:
 
 
 def _check_token(settings, token: str | None) -> None:
-    if not settings.admin_token or token != settings.admin_token:
+    import hmac
+
+    if not settings.admin_token or not token or not hmac.compare_digest(token, settings.admin_token):
         raise HTTPException(status_code=403, detail="bad or missing admin token")
 
 
@@ -76,23 +101,23 @@ def init_post(x_admin_token: str | None = Header(default=None)) -> dict:
     return _run_init(settings)
 
 
-@router.get("/init")
-def init_get(token: str = Query(...)) -> dict:
-    """Browser-clickable one-shot bootstrap. Same as POST /admin/init but the
-    token is passed as ?token= so it can be triggered from a URL bar once."""
-    settings = get_settings()
-    _check_token(settings, token)
-    return _run_init(settings)
 
 
 _ALL_TABLES = (
     "candidate_signals, consent_records, context_adjustments, decision_audit_log, "
     "domain_scores, flag_events, item_responses, learners, nomination_records, "
-    "panel_reviews, school_record_imports, schools, screening_sessions"
+    "panel_reviews, portfolio_submissions, school_record_imports, schools, screening_sessions, "
+    "channel_bindings"
 )
 
 
 def _run_reset(settings) -> dict:
+    if not settings.allow_data_reset:
+        raise HTTPException(
+            403,
+            "Reset is disabled. It truncates every table including the append-only "
+            "audit log, so it only runs where ALLOW_DATA_RESET=true (demo hosts).",
+        )
     """Wipe all learner data and reload the clean demo profiles. For demo hosts
     that were first seeded before a real key was configured, this removes any
     stale placeholder rows. TRUNCATE is not blocked by the audit-log trigger
@@ -107,11 +132,6 @@ def _run_reset(settings) -> dict:
     return {"reset": True, "reseeded": True, "llm_scoring": "live" if settings.llm_enabled else "mock"}
 
 
-@router.get("/reset")
-def reset_get(token: str = Query(...)) -> dict:
-    settings = get_settings()
-    _check_token(settings, token)
-    return _run_reset(settings)
 
 
 @router.post("/reset")
@@ -155,17 +175,15 @@ def _run_demo_screening() -> dict:
         session, _ = gateway.start_session(
             db, learner_id=learner.id, channel=Channel.whatsapp, language=Language.en
         )
-        # Deliberately uneven, articulate answers so the 2e spike pattern shows.
-        answers = [
-            "Cost is 60 and she sells for 96 so profit is 36. I did 12 times 8 first, then subtracted 60.",
-            "Net, because a net is what a fisherman depends on just like a farmer depends on rain.",
-            "42. The gaps are 4, 6, 8, 10, so the next gap is 12 and 30+12=42.",
-            "Yes, because the rule says everyone who passed had studied, so not studying means not passing.",
-            "blue, seven, river, chair, mango. I made a short story linking each word to remember the order.",
-        ]
-        for a in answers:
+        # Articulate sample answers to the v2 core items (keyed by domain, so
+        # they follow whatever order the engine presents).
+        from app.cli.seed import _DEMO_ANSWERS
+
+        while (item := gateway.pending_item(db, session.id)) is not None:
             gateway.submit_response(
-                db, session_id=session.id, raw_response=a, response_time_ms=11000
+                db, session_id=session.id,
+                raw_response=_DEMO_ANSWERS.get(item.domain, "I am not sure."),
+                response_time_ms=11000,
             )
         db.commit()
 
@@ -181,15 +199,77 @@ def _run_demo_screening() -> dict:
         db.close()
 
 
-@router.get("/demo-screening")
-def demo_screening_get(token: str = Query(...)) -> dict:
-    settings = get_settings()
-    _check_token(settings, token)
-    return _run_demo_screening()
 
 
 @router.post("/demo-screening")
-def demo_screening_post(x_admin_token: str | None = Header(default=None)) -> dict:
-    settings = get_settings()
-    _check_token(settings, x_admin_token)
+def demo_screening_post(_: Staff = Depends(require_roles(*ADMIN))) -> dict:
+    """Programme admins only: each run costs real LLM calls when Claude is live."""
     return _run_demo_screening()
+
+
+# ---------------------------------------------------------------- staff accounts
+class NewStaffUser(BaseModel):
+    email: str
+    display_name: str
+    role: StaffRole
+    password: str
+    school_id: uuid.UUID | None = None
+
+
+def _create_user(db: Session, body: NewStaffUser) -> dict:
+    if len(body.password) < 10:
+        raise HTTPException(422, "Password must be at least 10 characters.")
+    if body.role == StaffRole.school_staff and body.school_id is None:
+        raise HTTPException(422, "School staff accounts must be linked to a school.")
+    email = body.email.strip().lower()
+    if db.scalar(select(StaffUser).where(func.lower(StaffUser.email) == email)):
+        raise HTTPException(409, "An account with this email already exists.")
+    u = StaffUser(
+        email=email, display_name=body.display_name.strip(), role=body.role,
+        school_id=body.school_id, password_hash=hash_password(body.password),
+    )
+    db.add(u)
+    db.commit()
+    return {"id": str(u.id), "email": u.email, "role": u.role.value}
+
+
+@router.post("/bootstrap-admin")
+def bootstrap_admin(body: NewStaffUser, x_admin_token: str | None = Header(default=None),
+                    db: Session = Depends(get_db)) -> dict:
+    """Create the FIRST programme admin, using the ADMIN_TOKEN header. Refuses
+    once any programme admin exists, after that admins create accounts in the
+    dashboard (Admin > Staff accounts)."""
+    _check_token(get_settings(), x_admin_token)
+    if body.role != StaffRole.programme_admin:
+        raise HTTPException(422, "Bootstrap only creates a programme_admin.")
+    if db.scalar(select(func.count()).select_from(StaffUser).where(StaffUser.role == StaffRole.programme_admin)):
+        raise HTTPException(409, "A programme admin already exists; sign in and use Admin > Staff accounts.")
+    return _create_user(db, body)
+
+
+@router.get("/users")
+def list_users(_: Staff = Depends(require_roles(*ADMIN)), db: Session = Depends(get_db)) -> list[dict]:
+    return [
+        {"id": str(u.id), "email": u.email, "display_name": u.display_name, "role": u.role.value,
+         "school_id": str(u.school_id) if u.school_id else None, "active": u.active}
+        for u in db.scalars(select(StaffUser).order_by(StaffUser.created_at))
+    ]
+
+
+@router.post("/users")
+def create_user(body: NewStaffUser, _: Staff = Depends(require_roles(*ADMIN)),
+                db: Session = Depends(get_db)) -> dict:
+    return _create_user(db, body)
+
+
+@router.post("/users/{user_id}/deactivate")
+def deactivate_user(user_id: uuid.UUID, me: Staff = Depends(require_roles(*ADMIN)),
+                    db: Session = Depends(get_db)) -> dict:
+    if user_id == me.id:
+        raise HTTPException(422, "You cannot deactivate your own account.")
+    u = db.get(StaffUser, user_id)
+    if u is None:
+        raise HTTPException(404, "No such account.")
+    u.active = False
+    db.commit()
+    return {"id": str(u.id), "active": False}

@@ -80,8 +80,20 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
     # True on serverless hosts (Vercel) so the DB engine uses NullPool.
     serverless: bool = Field(default=False, alias="SERVERLESS")
-    # Guards the one-shot /admin/init bootstrap endpoint (schema + seed).
+    # Guards the one-shot /admin/init bootstrap endpoint (schema + seed) and
+    # creating the FIRST programme admin account. Header only, never a URL.
     admin_token: str | None = Field(default=None, alias="ADMIN_TOKEN")
+    # Signs staff sign-in tokens. REQUIRED outside local dev (fail-closed).
+    # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+    auth_secret: str | None = Field(default=None, alias="AUTH_SECRET")
+    # /admin/reset wipes every table, including the "immutable" audit log, so
+    # it is OFF unless explicitly enabled (demo hosts only, never production).
+    allow_data_reset: bool = Field(default=False, alias="ALLOW_DATA_RESET")
+    # Public base URL where item images are served (the dashboard's /items
+    # folder), used to attach pictures to WhatsApp questions.
+    media_base_url: str = Field(
+        default="https://kuza-identify-dashboard.vercel.app/items", alias="MEDIA_BASE_URL"
+    )
 
     @property
     def llm_enabled(self) -> bool:

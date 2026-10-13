@@ -8,16 +8,33 @@ import {
   Bot, Send,
 } from "lucide-react";
 import {
-  BonusItem, ChatTurn, ChecklistItem, FlaggedProfile, Health, Metrics, PortfolioSubmissionRow,
-  ScreeningItem, SchoolRow,
-  getChatStarters, getHealth, getIntro, getMetrics, getNominationForm, listBonusItems,
-  listFlagged, listItems, listSchools, recordDecision, runDemoScreening, sendChatMessage,
+  ChatTurn, ChecklistItem, FlaggedProfile, Health, Metrics, PortfolioSubmissionRow,
+  ScreeningItem, SchoolRow, StaffRole, StaffUser,
+  getChatStarters, getHealth, getIntro, getMetrics, getNominationForm, getStoredUser,
+  itemAsset, listFlagged, listItems, listSchools, recordDecision, sendChatMessage,
   submitNomination, submitPortfolio,
 } from "./api";
+import { KuzaPlay } from "./KuzaPlay";
+import { AdminTab, Gate, InsightsTab, QuestionBankTab, RunSessionTab, WhoAmI } from "./Staff";
 
-type Tab = "about" | "review" | "refer" | "screening" | "chatbot";
+/* Sections are grouped by who they are for:
+ *  - Public (no sign-in, no learner data): How it works, Kuza Play, Puzzle bank, Channel preview, Ask Kuza
+ *  - Referral (no account needed, rate-limited): Refer a learner
+ *  - Staff (sign-in, role-checked on the server): Panel review, Run a session, Insights, Admin
+ * Kuza Play also runs full-screen on its own at #/play, with none of the staff chrome. */
+type Tab = "about" | "play" | "bank" | "channels" | "chatbot" | "refer" | "review" | "session" | "insights" | "admin";
 type ReferSub = "nominate" | "portfolio";
-type ScreeningSub = "core" | "bonus" | "try";
+const TAB_IDS: Tab[] = ["about", "play", "bank", "channels", "chatbot", "refer", "review", "session", "insights", "admin"];
+const STAFF_ROLES: Record<"review" | "session" | "insights" | "admin", StaffRole[]> = {
+  review: ["reviewer", "panel_lead", "programme_admin"],
+  session: ["school_staff", "panel_lead", "programme_admin"],
+  insights: ["reviewer", "panel_lead", "programme_admin", "auditor"],
+  admin: ["programme_admin"],
+};
+function tabFromHash(): Tab {
+  const h = window.location.hash.replace(/^#\/?/, "").split("?")[0] as Tab;
+  return TAB_IDS.includes(h) ? h : "about";
+}
 type PreviewChannel = "whatsapp" | "sms" | "ussd";
 
 const DOMAIN_LABELS: Record<string, string> = {
@@ -146,30 +163,56 @@ function SubNav<T extends string>({
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>("about");
+  // Full-screen, child-facing mode: no staff navigation at all.
+  if (window.location.hash.startsWith("#/play")) return <KuzaPlay standalone onExit={() => { window.location.hash = "#/bank"; window.location.reload(); }} />;
+  return <Shell />;
+}
+
+function Shell() {
+  const [tab, setTabState] = useState<Tab>(tabFromHash);
   const [health, setHealth] = useState<Health | null>(null);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [user, setUser] = useState<StaffUser | null>(getStoredUser);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealth(null));
     const on = () => setOffline(false), off = () => setOffline(true);
+    const auth = () => setUser(getStoredUser());
+    const hash = () => setTabState(tabFromHash());
     window.addEventListener("online", on); window.addEventListener("offline", off);
-    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+    window.addEventListener("kuza-auth-changed", auth); window.addEventListener("hashchange", hash);
+    return () => {
+      window.removeEventListener("online", on); window.removeEventListener("offline", off);
+      window.removeEventListener("kuza-auth-changed", auth); window.removeEventListener("hashchange", hash);
+    };
   }, []);
 
-  const TABS: { id: Tab; label: string; icon: ReactNode; purpose: string }[] = [
-    { id: "about", label: "How it works", icon: <BookOpen size={16} className="lic" />, purpose: "What this pilot does, what is live, and what is coming next." },
-    { id: "review", label: "Panel review", icon: <Gavel size={16} className="lic" />, purpose: "Review flagged learners and record decisions." },
-    { id: "refer", label: "Refer a learner", icon: <UserPlus size={16} className="lic" />, purpose: "Nominate a child, or submit a portfolio / work sample as evidence." },
-    { id: "screening", label: "Screening", icon: <ListChecks size={16} className="lic" />, purpose: "The core and bonus questions, and a hands-on preview of WhatsApp, SMS, and USSD." },
-    { id: "chatbot", label: "Ask Kuza", icon: <Bot size={16} className="lic" />, purpose: "Ask questions about what Kuza Connect is and how it works." },
+  type TabDef = { id: Tab; label: string; icon: ReactNode; purpose: string; group: "Explore" | "Refer" | "Staff" };
+  const TABS: TabDef[] = [
+    { id: "about", group: "Explore", label: "How it works", icon: <BookOpen size={16} className="lic" />, purpose: "What this pilot does, what is live, and what is coming next." },
+    { id: "play", group: "Explore", label: "Kuza Play", icon: <Sparkles size={16} className="lic" />, purpose: "The child-friendly puzzle mode: pictures, read-aloud, tap, talk or draw. Not a test." },
+    { id: "bank", group: "Explore", label: "Puzzle bank", icon: <ListChecks size={16} className="lic" />, purpose: "Every puzzle, its picture, and every way it can be delivered and answered. Printable cards." },
+    { id: "channels", group: "Explore", label: "Phone channels", icon: <Smartphone size={16} className="lic" />, purpose: "How the same session looks on WhatsApp, SMS and USSD." },
+    { id: "chatbot", group: "Explore", label: "Ask Kuza", icon: <Bot size={16} className="lic" />, purpose: "Ask questions about what Kuza Connect is and how it works." },
+    { id: "refer", group: "Refer", label: "Refer a learner", icon: <UserPlus size={16} className="lic" />, purpose: "Nominate a child, or submit a portfolio / work sample as evidence. No account needed." },
+    { id: "review", group: "Staff", label: "Panel review", icon: <Gavel size={16} className="lic" />, purpose: "Review flagged learners and record decisions. Staff sign-in required." },
+    { id: "session", group: "Staff", label: "Run a session", icon: <Play size={16} className="lic" />, purpose: "Start a consented screening session on a tablet or phone. Staff sign-in required." },
+    { id: "insights", group: "Staff", label: "Insights", icon: <ClipboardCheck size={16} className="lic" />, purpose: "Aggregate funnel, fairness slices and the audit log. Staff sign-in required." },
+    { id: "admin", group: "Staff", label: "Admin", icon: <Users size={16} className="lic" />, purpose: "Staff accounts, roles and demo tools. Programme admins only." },
   ];
+  const visible = TABS.filter((t) => t.group !== "Staff" || !user || STAFF_ROLES[t.id as keyof typeof STAFF_ROLES]?.includes(user.role) || false);
+  const groups: TabDef["group"][] = ["Explore", "Refer", "Staff"];
 
+  function setTab(t: Tab) {
+    setTabState(t);
+    if (window.location.hash !== `#/${t}`) window.history.replaceState(null, "", `#/${t}`);
+  }
   function selectTab(t: Tab) {
     setTab(t);
     setDrawerOpen(false);
   }
+  const locked = (t: TabDef) => t.group === "Staff" && !user;
 
   return (
     <div className="appshell">
@@ -183,12 +226,18 @@ export function App() {
           </div>
         </div>
         <nav className="sidebarnav" aria-label="Sections">
-          {TABS.map((t) => (
-            <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => selectTab(t.id)}>
-              {t.icon}{t.label}
-            </button>
+          {groups.map((g) => (
+            <div key={g} className="navgroup">
+              <span className="navgrouplabel">{g === "Staff" ? <><Lock size={11} className="lic" /> Staff</> : g}</span>
+              {visible.filter((t) => t.group === g).map((t) => (
+                <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => selectTab(t.id)}>
+                  {t.icon}{t.label}{locked(t) && <Lock size={12} className="lic navlock" aria-label="sign-in required" />}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
+        {user && <WhoAmI user={user} />}
         <p className="sidebarfoot">Phase 0 pilot. The system flags candidates. A reviewer decides every case.</p>
       </aside>
 
@@ -216,11 +265,15 @@ export function App() {
           </header>
 
           {offline && <div className="offline">You are offline. Showing what is already loaded. Reconnect to refresh.</div>}
+          {user && health && Array.isArray(health.missing_tables) && health.missing_tables.length > 0 && user.role === "programme_admin" && (
+            <div className="banner warn"><TriangleAlert size={16} className="lic" />
+              <span>The database is missing tables ({health.missing_tables.join(", ")}). Run <code>POST /admin/init</code> with the admin token once to create them.</span></div>
+          )}
 
           <nav className="tabs" aria-label="Sections">
-            {TABS.map((t) => (
+            {visible.map((t) => (
               <button key={t.id} className={tab === t.id ? "on" : ""} aria-current={tab === t.id} onClick={() => setTab(t.id)}>
-                {t.icon}{t.label}
+                {t.icon}{t.label}{locked(t) && <Lock size={12} className="lic navlock" />}
               </button>
             ))}
           </nav>
@@ -228,10 +281,31 @@ export function App() {
 
           <main className="content" key={tab}>
             {tab === "about" && <AboutTab />}
-            {tab === "review" && <ReviewTab health={health} />}
-            {tab === "refer" && <ReferTab />}
-            {tab === "screening" && <ScreeningTab />}
+            {tab === "play" && <KuzaPlay />}
+            {tab === "bank" && <QuestionBankTab onPlay={() => setTab("play")} />}
+            {tab === "channels" && <TryItTab />}
             {tab === "chatbot" && <ChatbotTab />}
+            {tab === "refer" && <ReferTab />}
+            {tab === "review" && (
+              <Gate user={user} roles={STAFF_ROLES.review} why="Panel review shows individual learner profiles, so it needs a reviewer sign-in.">
+                <ReviewTab health={health} />
+              </Gate>
+            )}
+            {tab === "session" && (
+              <Gate user={user} roles={STAFF_ROLES.session} why="Starting a screening session needs a staff sign-in.">
+                <RunSessionTab />
+              </Gate>
+            )}
+            {tab === "insights" && (
+              <Gate user={user} roles={STAFF_ROLES.insights} why="Insights need a staff sign-in.">
+                {user && <InsightsTab user={user} />}
+              </Gate>
+            )}
+            {tab === "admin" && (
+              <Gate user={user} roles={STAFF_ROLES.admin} why="Admin is for programme admins only.">
+                {user && <AdminTab user={user} />}
+              </Gate>
+            )}
           </main>
         </div>
       </div>
@@ -243,29 +317,16 @@ export function App() {
 function ReviewTab({ health }: { health: Health | null }) {
   const [profiles, setProfiles] = useState<FlaggedProfile[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reviewerId, setReviewerId] = useState(() => localStorage.getItem("kuza_reviewer") || "reviewer-1");
   const [selected, setSelected] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [demoMsg, setDemoMsg] = useState<string | null>(null);
 
   async function refresh() {
     try { setError(null); setProfiles(await listFlagged()); }
     catch (e) { setError(String(e)); setProfiles([]); }
   }
   useEffect(() => { refresh(); }, []);
-  useEffect(() => { localStorage.setItem("kuza_reviewer", reviewerId); }, [reviewerId]);
-
-  async function runDemo() {
-    const token = localStorage.getItem("kuza_admin_token") ||
-      window.prompt("Enter the admin token to run a live demo screening:") || "";
-    if (!token) return;
-    localStorage.setItem("kuza_admin_token", token);
-    setDemoMsg("Running a screening through the scorer.");
-    try { const r = await runDemoScreening(token); setDemoMsg("New profile created (scored by " + r.scored_by + "). Refreshed."); await refresh(); }
-    catch (e) { setDemoMsg("Demo failed: " + String(e)); }
-  }
 
   const filtered = useMemo(() => (profiles || []).filter((p) => {
     if (statusFilter !== "all" && statusOf(p) !== statusFilter) return false;
@@ -300,9 +361,7 @@ function ReviewTab({ health }: { health: Health | null }) {
 
       <div className="rowbar">
         <div className="controls">
-          <span className="revfield">Reviewer <input value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} /></span>
           <button onClick={refresh}><RotateCw size={15} className="lic" />Refresh</button>
-          <button onClick={runDemo}><Play size={15} className="lic" />Run demo screening</button>
         </div>
       </div>
 
@@ -310,8 +369,7 @@ function ReviewTab({ health }: { health: Health | null }) {
         <div className="banner warn"><TriangleAlert size={16} className="lic" />
           <span>Demo mode. No WhatsApp provider is connected, so this data is seed data.</span></div>
       )}
-      {demoMsg && <div className="banner info"><Info size={16} className="lic" /><span>{demoMsg}</span></div>}
-      {error && <div className="error">Could not reach the API. {error}</div>}
+      {error && <div className="error">Could not load the queue. {error}</div>}
 
       <div className="filters">
         <label>Status
@@ -343,7 +401,6 @@ function ReviewTab({ health }: { health: Health | null }) {
                 <p>No learners match these filters.</p>
                 <div className="emptyactions">
                   <button onClick={refresh}><RotateCw size={15} className="lic" />Refresh</button>
-                  <button onClick={runDemo}><Play size={15} className="lic" />Run demo screening</button>
                 </div>
               </div>
             ) : (
@@ -368,7 +425,7 @@ function ReviewTab({ health }: { health: Health | null }) {
             )}
           </aside>
           <section className="panel">
-            {current ? <ProfileView key={current.session_id} profile={current} reviewerId={reviewerId} onDecided={refresh} />
+            {current ? <ProfileView key={current.session_id} profile={current} onDecided={refresh} />
               : <p className="muted">No learner selected.</p>}
           </section>
         </div>
@@ -384,7 +441,7 @@ function plainSummary(p: FlaggedProfile): string {
   return `Strongest in ${DOMAIN_LABELS[top.domain] ?? top.domain} (${top.adjusted_score} of 100). Weakest in ${DOMAIN_LABELS[low.domain] ?? low.domain} (${low.adjusted_score} of 100). Uneven profile.`;
 }
 
-function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfile; reviewerId: string; onDecided: () => void; }) {
+function ProfileView({ profile, onDecided }: { profile: FlaggedProfile; onDecided: () => void; }) {
   const [pending, setPending] = useState<null | "advance" | "hold" | "decline">(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -396,7 +453,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
       setMsg("A written reason is required to Hold or Decline."); return;
     }
     setBusy(true); setMsg(null);
-    try { await recordDecision(profile.session_id, reviewerId, pending, notes); setPending(null); setNotes(""); onDecided(); }
+    try { await recordDecision(profile.session_id, pending, notes); setPending(null); setNotes(""); onDecided(); }
     catch (e) { setMsg(String(e)); }
     finally { setBusy(false); }
   }
@@ -482,7 +539,7 @@ function ProfileView({ profile, reviewerId, onDecided }: { profile: FlaggedProfi
           <ul className="history">
             {profile.review_history.map((r, i) => (
               <li key={i}><StatusBadge status={r.decision} label={r.decision} />
-                <span className="muted small">{r.reviewer_id}, {new Date(r.decided_at).toLocaleString()}{r.notes ? ". " + r.notes : ""}</span></li>
+                <span className="muted small">{r.reviewer_name ?? r.reviewer_id}, {new Date(r.decided_at).toLocaleString()}{r.notes ? ". " + r.notes : ""}</span></li>
             ))}
           </ul>
         </section>
@@ -791,108 +848,6 @@ function PortfolioTab() {
 }
 
 /* ============================== Screening ================================ */
-function ScreeningTab() {
-  const [sub, setSub] = useState<ScreeningSub>("core");
-  return (
-    <div>
-      <SubNav<ScreeningSub>
-        value={sub} onChange={setSub}
-        items={[
-          { id: "core", label: "Core questions", icon: <ListChecks size={15} className="lic" /> },
-          { id: "bonus", label: "Bonus questions", icon: <Layers size={15} className="lic" /> },
-          { id: "try", label: "Try it interactively", icon: <Sparkles size={15} className="lic" /> },
-        ]}
-      />
-      {sub === "core" && <QuestionsTab />}
-      {sub === "bonus" && <BonusQuestionsTab />}
-      {sub === "try" && <TryItTab />}
-    </div>
-  );
-}
-
-function QuestionsTab() {
-  const [items, setItems] = useState<ScreeningItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { listItems().then(setItems).catch((e) => { setError(String(e)); setItems([]); }); }, []);
-  return (
-    <div>
-      <div className="pageheader">
-        <h2 className="pagetitle">The core screening questions</h2>
-        <p className="lead">A learner answers these five questions, over WhatsApp, SMS, or USSD, in English or Kiswahili. There are no trick answers. The scorer rewards reasoning, not neat handwriting or perfect arithmetic. This is the automatic session every screening runs today.</p>
-        {items && (
-          <div className="qmeta">
-            <div className="qmetaitem"><FileText size={16} className="lic" style={{ color: "var(--teal)" }} />
-              <div><b>{items.length} questions</b><span className="muted"> Short and focused</span></div></div>
-            <div className="qmetaitem"><Clock size={16} className="lic" style={{ color: "var(--amber)" }} />
-              <div><b>Untimed</b><span className="muted"> Take your time</span></div></div>
-            <div className="qmetaitem"><Sparkles size={16} className="lic" style={{ color: "var(--teal)" }} />
-              <div><b>Reasoning over arithmetic</b><span className="muted"> We value how you think</span></div></div>
-          </div>
-        )}
-      </div>
-      <div className="formcard">
-      {error && <div className="error">{error}</div>}
-      {items === null ? <div className="loading">Loading questions.</div> : (
-        <ol className="questions">
-          {items.map((it, i) => (
-            <li key={it.id} className="qitem">
-              <div className="qitemrow">
-                <span className="qnum">{i + 1}</span>
-                <div className="qitembody">
-                  <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}<span className="qtag">{DOMAIN_TAG[it.domain]}</span></span>
-                  <p className="qen">{it.prompt.en}</p>
-                  <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-      </div>
-    </div>
-  );
-}
-
-/* ============================ Bonus questions ============================= */
-function BonusQuestionsTab() {
-  const [items, setItems] = useState<BonusItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => { listBonusItems().then(setItems).catch((e) => { setError(String(e)); setItems([]); }); }, []);
-  const TIER_LABELS: Record<string, string> = { bonus_off_level: "Off-level (harder)", bonus_creativity: "Creativity" };
-  return (
-    <div>
-      <div className="pageheader">
-        <h2 className="pagetitle">Bonus questions</h2>
-        <p className="lead">Off-level (deliberately harder) items and a creativity item, built as additional evidence for a learner who finishes the core five with room to spare. They exist and are scoreable today, but are not yet wired into the automatic session, a reviewer or a future version of the gateway would need to decide when to offer them.</p>
-      </div>
-      <div className="formcard">
-      {error && <div className="error">{error}</div>}
-      {items === null ? <div className="loading">Loading bonus questions.</div> : items.length === 0 ? (
-        <p className="muted small">No bonus questions available.</p>
-      ) : (
-        <ol className="questions">
-          {items.map((it, i) => (
-            <li key={it.id} className="qitem">
-              <div className="qitemrow">
-                <span className="qnum">{i + 1}</span>
-                <div className="qitembody">
-                  <div className="cardtop">
-                    <span className="qdomain"><DIcon domain={it.domain} size={16} chip />{DOMAIN_LABELS[it.domain] ?? it.domain}<span className="qtag">{DOMAIN_TAG[it.domain]}</span></span>
-                    <span className="badge awaiting">{TIER_LABELS[it.tier] ?? it.tier}</span>
-                  </div>
-                  <p className="qen">{it.prompt.en}</p>
-                  <p className="qsw"><Languages size={15} className="lic" /><span>Kiswahili: {it.prompt.sw}</span></p>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-      </div>
-    </div>
-  );
-}
-
 /* ============================== Try it ==================================== */
 const CHANNEL_LABELS: Record<PreviewChannel, string> = { whatsapp: "WhatsApp", sms: "SMS", ussd: "USSD" };
 const CHANNEL_ICON: Record<PreviewChannel, typeof MessageCircle> = { whatsapp: MessageCircle, sms: MessageSquareText, ussd: Smartphone };
@@ -998,7 +953,9 @@ function TryItTab() {
         {current && (
           <div className={"bubble reveal" + (isUssd ? " ussdscreen" : "")} key={current.id}>
             <span className="qdomain"><DIcon domain={current.domain} size={16} />{DOMAIN_LABELS[current.domain] ?? current.domain}</span>
-            <p className="qtext">{frame(current.prompt[lang])}</p>
+            {channel === "whatsapp" && current.image && <img className="chatimg" src={itemAsset(current.image)} alt={current.text_fallback?.[lang] ?? ""} />}
+            <p className="qtext">{frame(channel === "whatsapp" ? current.prompt[lang] : (current.text_fallback?.[lang] ?? current.prompt[lang]))}</p>
+            {channel === "whatsapp" && current.choices && <p className="qtext small">{current.choices.map((c, n) => `${n + 1}) ${c[lang]}`).join("   ")}</p>}
             <textarea
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -1016,7 +973,7 @@ function TryItTab() {
               <button className="advance" onClick={() => next(draft)}>
                 {step === total ? "Finish" : "Next"} <ArrowRight size={16} className="lic" />
               </button>
-              <button onClick={() => next("")}>Skip this one</button>
+              <button onClick={() => next("")}>{lang === "sw" ? "Ruka" : "Skip"}</button>
             </div>
           </div>
         )}
@@ -1138,8 +1095,12 @@ const FEATURES: { label: string; status: FeatureStatus; note: string; icon: type
     note: "Teacher, parent, or peer referral with a twice-exceptional checklist." },
   { label: "Portfolio / work sample", status: "live", icon: FileText,
     note: "Description-based evidence, reviewed alongside screening and nomination." },
-  { label: "Bonus questions", status: "live", icon: Layers,
-    note: "Off-level and creativity items exist as preview content, not yet in the automatic session." },
+  { label: "Picture puzzles and Kuza Play", status: "live", icon: Sparkles,
+    note: "31 puzzles with pictures or read-aloud, answered by tap, talk, ordering or drawing. Skip and hints never cost marks." },
+  { label: "Staff sign-in and roles", status: "live", icon: Lock,
+    note: "Reviewers, panel leads, admins, auditors and school staff each see only their part. Referring needs no account." },
+  { label: "Printable puzzle cards", status: "live", icon: Layers,
+    note: "For paper or facilitator-led sessions where there's no device." },
   { label: "Human panel review and audit log", status: "live", icon: Gavel,
     note: "A person decides Advance, Hold, or Decline. Every flag-to-decision path is logged." },
   { label: "Voice-note answers (this web preview)", status: "live", icon: Mic,
@@ -1246,7 +1207,7 @@ function AboutTab() {
               <li key={k}><DIcon domain={k} size={17} chip />{v}</li>
             ))}
           </ul>
-          <p className="muted small" style={{ marginTop: 8 }}>Off-level (harder) items and a creativity item exist as additional evidence content but are not yet part of the automatic session, see Screening &gt; Bonus questions.</p>
+          <p className="muted small" style={{ marginTop: 8 }}>Plus creativity puzzles and an unscored "what do you love doing?" warm-up. See the Puzzle bank for every puzzle and how it can be delivered.</p>
         </div>
         <div className="abt">
           <h3>How Claude scoring works</h3>
@@ -1309,7 +1270,7 @@ function AboutTab() {
         ))}
       </div>
       <p className="muted small">Buildable on the current stack: reviewer assignment and status, fairness dashboards, exports, longitudinal tables, model-feedback capture. Needs a new provider or agreement: real WhatsApp/SMS (Twilio), real USSD (Africa's Talking), voice transcription, KEMIS integration, notification channels.</p>
-      <p className="muted small">This dashboard is the back-office tool for trained reviewers. The child-facing part is WhatsApp, SMS, or USSD. Phase 0 pilot build.</p>
+      <p className="muted small">The child-facing parts are Kuza Play (tablet or phone browser), WhatsApp, SMS and USSD, plus printable cards. Staff sections need a sign-in. Phase 0 pilot build.</p>
       </div>
     </div>
   );
@@ -1332,10 +1293,14 @@ const ROADMAP = [
     value: "Find never-nominated children from existing records.",
     needs: "First confirm the system and that an authorised route exists (data model, auth, consent basis, rate limits, MOU). No endpoint is assumed. Interim option: CSV or SFTP or manual import with audit logs, via the existing adapter interface.",
     risks: "No public write API today, legal and consent basis, re-encoding teacher bias." },
-  { title: "School and teacher accounts, roles", external: false, effort: "L",
-    value: "Real logins and scoped access.",
-    needs: "Authentication, users and roles tables, session management.",
-    risks: "Access control and credential security." },
+  { title: "Adaptive branching into the puzzle pool", external: false, effort: "M",
+    value: "Each child gets puzzles at the right level, and more evidence where they shine.",
+    needs: "Gateway logic to pick the next pool item from the previous answer; per-domain item calibration from pilot data.",
+    risks: "Needs enough pilot responses to set difficulty levels honestly." },
+  { title: "Voice-call (IVR) and photo answers", external: true, effort: "M",
+    value: "Children who can't read or write well answer by speaking, or by photographing a drawing or model.",
+    needs: "A voice provider (e.g. Africa's Talking Voice), a transcription provider, and file storage for photos.",
+    risks: "Storage of child-made images needs its own consent wording." },
   { title: "Reviewer assignment and In-review status", external: false, effort: "M",
     value: "Coordinate several reviewers.",
     needs: "New status and assignment columns, a migration beyond the current schema.",

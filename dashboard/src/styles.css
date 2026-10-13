@@ -596,3 +596,17 @@ textarea { min-height: 84px; resize: vertical; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- grouped navigation, sign-in (access-control update) ---- */
+.navgroup { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.navgrouplabel { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted); padding: 6px 12px 2px; }
+.navlock { margin-left: auto; opacity: 0.6; }
+.whoami { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; padding: 10px 12px; margin: 4px 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: var(--radius); background: rgba(255, 255, 255, 0.08); color: #fff; }
+.whoami b { color: #fff; }
+.whoami button { color: var(--ink); background: #fff; }
+.whoami button { margin-left: auto; display: inline-flex; gap: 4px; align-items: center; font-size: 12px; min-height: 32px; }
+.signin { max-width: 440px; }
+.signin form { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.chatimg { display: block; width: 100%; max-width: 360px; border-radius: 10px; margin: 6px 0; }

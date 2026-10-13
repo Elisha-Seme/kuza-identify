@@ -80,8 +80,22 @@ def start_session(
     # State the untimed / no-penalty accommodation explicitly, once, before the
     # first item (UDL practice) rather than leaving it unenforced-but-unstated.
     intro = items.session_intro(language)
-    prompt = f"{intro}\n\n{first.text(language)}" if intro else first.text(language)
+    body = first.text_for(channel, language)
+    prompt = f"{intro}\n\n{body}" if intro else body
     return session, prompt
+
+
+def pending_stage(db: Session, session_id: uuid.UUID) -> int:
+    session = db.get(ScreeningSession, session_id)
+    return session.pending_stage if session else 0
+
+
+def pending_item(db: Session, session_id: uuid.UUID) -> items.Item | None:
+    """The item currently waiting for an answer (used to attach its picture)."""
+    session = db.get(ScreeningSession, session_id)
+    if session is None or session.status != SessionStatus.in_progress:
+        return None
+    return items.select_next(_seen_item_ids(db, session_id))
 
 
 def next_prompt(db: Session, session_id: uuid.UUID) -> str | None:
@@ -90,7 +104,24 @@ def next_prompt(db: Session, session_id: uuid.UUID) -> str | None:
     if session is None or session.status != SessionStatus.in_progress:
         return None
     item = items.select_next(_seen_item_ids(db, session_id))
-    return item.text(session.language) if item else None
+    return item.text_for(session.channel, session.language, session.pending_stage) if item else None
+
+
+_CONTROL_REPLIES = {
+    "pause": {
+        "en": "No problem, your answers are saved. Send any message when you want to carry on.",
+        "sw": "Sawa, majibu yako yamehifadhiwa. Tuma ujumbe wowote ukitaka kuendelea.",
+    },
+    "no_hint": {
+        "en": "There are no more hints for this one. Have a go, or say 'skip'.",
+        "sw": "Hakuna dokezo zaidi kwa swali hili. Jaribu, au sema 'ruka'.",
+    },
+}
+
+
+class WrongItemError(Exception):
+    """The client answered a different item than the one waiting (e.g. a
+    double-tap that would otherwise land on the NEXT item)."""
 
 
 def submit_response(
@@ -99,6 +130,7 @@ def submit_response(
     session_id: uuid.UUID,
     raw_response: str,
     response_time_ms: int | None = None,
+    expected_item_id: str | None = None,
 ) -> str | None:
     """Record a response to the currently-pending item and return the next prompt,
     or None when the session is complete (which triggers scoring + flagging)."""
@@ -111,14 +143,54 @@ def submit_response(
         _complete(db, session)
         return None
 
+    if expected_item_id is not None and expected_item_id != pending.id:
+        raise WrongItemError(f"Item {expected_item_id} is not the one waiting ({pending.id}).")
+
+    lang = session.language
+    action = items.control_word(raw_response)
+    # Coming back after "pause": this message only resumes. Re-send the
+    # current question; never record it as an answer.
+    if session.paused:
+        session.paused = False
+        db.flush()
+        if action != "skip":
+            return pending.text_for(session.channel, lang, session.pending_stage)
+    if action == "pause":
+        session.paused = True
+        db.flush()
+        return _CONTROL_REPLIES["pause"].get(lang.value) or _CONTROL_REPLIES["pause"]["en"]
+    # Step 1 of a two-step memory item: "repeat"/"hint" show the things to
+    # remember again; any other reply ("OK") moves on to the question and is
+    # not an answer. Skip still skips.
+    if pending.staged(session.channel) and session.pending_stage == 0 and action != "skip":
+        if action in ("repeat", "hint"):
+            return pending.text_for(session.channel, lang, 0)
+        session.pending_stage = 1
+        db.flush()
+        return pending.text_for(session.channel, lang, 1)
+    # Control words never count as an answer and never advance the session.
+    if action == "repeat":
+        return pending.text_for(session.channel, lang, session.pending_stage)
+    if action == "hint":
+        h = pending.hint(session.pending_hints, lang)
+        if h is None:
+            return _CONTROL_REPLIES["no_hint"].get(lang.value) or _CONTROL_REPLIES["no_hint"]["en"]
+        session.pending_hints += 1
+        db.flush()
+        return h
+
     db.add(
         ItemResponse(
             session_id=session_id,
             item_id=pending.id,
-            raw_response=raw_response,
+            raw_response="" if action == "skip" else raw_response,
             response_time_ms=response_time_ms,
+            hints_used=session.pending_hints,
+            skipped=action == "skip",
         )
     )
+    session.pending_hints = 0
+    session.pending_stage = 0
     session.current_item_index = session.current_item_index + 1
     db.flush()
 
@@ -126,7 +198,7 @@ def submit_response(
     if nxt is None:
         _complete(db, session)
         return None
-    return nxt.text(session.language)
+    return nxt.text_for(session.channel, lang, 0)
 
 
 def _complete(db: Session, session: ScreeningSession) -> None:
@@ -140,21 +212,27 @@ def _complete(db: Session, session: ScreeningSession) -> None:
     )
     for r in responses:
         item = items.get_item(r.item_id)
-        if item is None:
+        # A skipped item is NOT scored: no DomainScore rather than a zero, so
+        # skipping (as the intro promises) carries no penalty and can't create
+        # a false "uneven profile" flag.
+        if item is None or r.skipped:
             continue
         result = score_response(
             domain=item.domain,
-            item_prompt=item.text(session.language),
+            item_prompt=item.scoring_prompt(session.language),
             expected_reasoning=item.expected_reasoning,
-            raw_response=r.raw_response,
+            raw_response=item.describe_response(r.raw_response, session.language),
             language=session.language,
         )
+        evidence = result.evidence_text
+        if r.hints_used:
+            evidence += f" (Answered after {r.hints_used} hint{'s' if r.hints_used > 1 else ''}: learning-velocity evidence.)"
         db.add(
             DomainScore(
                 session_id=session.id,
                 domain=item.domain,
                 score=result.score,
-                evidence_text=result.evidence_text,
+                evidence_text=evidence,
                 scoring_model_version=result.scoring_model_version,
             )
         )

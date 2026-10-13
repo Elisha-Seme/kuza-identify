@@ -57,8 +57,11 @@ def submit_nomination(
     )
     db.add(record)
 
-    # A parent nomination is also an expression of consent to nominate (Section 7).
-    if guardian_identifier:
+    # Only a PARENT/guardian nomination is an expression of guardian consent
+    # (Section 7). A teacher or peer ticking a box is not the guardian's
+    # consent, so no ConsentRecord is written for them; consent is collected
+    # from the guardian before screening, as the consent gate requires.
+    if guardian_identifier and nominator_role == NominatorRole.parent:
         db.add(
             ConsentRecord(
                 learner_id=learner_id,

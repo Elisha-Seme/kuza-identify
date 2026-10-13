@@ -16,12 +16,24 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
+from app.core.auth import hash_password
 from app.core.db import SessionLocal
-from app.core.enums import ConsentScope, LearnerSource
+from app.core.enums import ConsentScope, LearnerSource, StaffRole
 from app.main import app
-from app.models import ConsentRecord, DomainScore, FlagEvent, Learner, School
+from app.models import ConsentRecord, DomainScore, FlagEvent, Learner, School, StaffUser
 
 client = TestClient(app)
+
+
+def _staff_headers(db, role: StaffRole, school_id=None) -> dict:
+    """Create a staff account directly and sign in through the real endpoint."""
+    email = f"{role.value}-{uuid.uuid4().hex[:8]}@test.kuza"
+    db.add(StaffUser(email=email, display_name=f"Test {role.value}", role=role,
+                     school_id=school_id, password_hash=hash_password("correct horse battery")))
+    db.commit()
+    r = client.post("/auth/login", json={"email": email, "password": "correct horse battery"})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
 @pytest.fixture()
@@ -47,8 +59,10 @@ def test_consent_gate_blocks_screening(db):
     resp = client.post(
         "/screening/sessions",
         json={"learner_id": str(learner.id), "channel": "whatsapp", "language": "en"},
+        headers=_staff_headers(db, StaffRole.school_staff, school.id),
     )
     assert resp.status_code == 403  # DPA 2019: no consent, no session
+    assert "consent" in resp.json()["detail"].lower()
 
 
 def test_full_whatsapp_flow_scores_flags_and_decides(db):
@@ -66,17 +80,20 @@ def test_full_whatsapp_flow_scores_flags_and_decides(db):
     db.commit()
 
     # Start session (Kiswahili) and drive the mocked WhatsApp webhook to completion.
+    staff = _staff_headers(db, StaffRole.school_staff, school.id)
     start = client.post(
         "/screening/sessions",
         json={"learner_id": str(learner.id), "channel": "whatsapp", "language": "sw"},
+        headers=staff,
     ).json()
     session_id = start["session_id"]
     assert start["next_prompt"]  # first item text returned
 
     phone = "254700000001"
-    client.post(f"/screening/webhook/bind?from_={phone}&session_id={session_id}")
+    client.post(f"/screening/webhook/bind?from_={phone}&session_id={session_id}", headers=staff)
 
-    for i in range(5):
+    # 5 answers + 1 "OK" for the two-step memory item.
+    for i in range(6):
         r = client.post(
             "/screening/webhook/whatsapp",
             json={"from": phone, "text": f"Jibu {i} pamoja na maelezo ya kufikiri."},
@@ -104,11 +121,18 @@ def test_full_whatsapp_flow_scores_flags_and_decides(db):
     # If flags fired, a decision can be recorded — and only via the panel.
     flags = db.query(FlagEvent).filter_by(session_id=uuid.UUID(session_id)).all()
     if flags:
+        body = {"reviewer_id": "someone-else", "decision": "advance", "notes": "ok"}
+        assert client.post(f"/panel/sessions/{session_id}/decision", json=body).status_code == 401
         dec = client.post(
-            f"/panel/sessions/{session_id}/decision",
-            json={"reviewer_id": "rev-1", "decision": "advance", "notes": "ok"},
+            f"/panel/sessions/{session_id}/decision", json=body,
+            headers=_staff_headers(db, StaffRole.reviewer),
         )
         assert dec.status_code == 200
+        # The typed reviewer_id is ignored; the signed-in account is recorded.
+        rid = db.execute(text(
+            "SELECT reviewer_id FROM panel_reviews WHERE session_id=:sid"
+        ), {"sid": session_id}).scalar()
+        assert rid.startswith("staff:")
 
         # The flag -> decision path is in the immutable log, and cannot be mutated.
         n = db.execute(text(

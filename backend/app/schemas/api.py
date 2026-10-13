@@ -19,12 +19,20 @@ class SessionStateResponse(BaseModel):
     session_id: uuid.UUID
     status: str
     next_prompt: str | None = None
+    # The item now waiting for an answer, so a rich client (Kuza Play) can
+    # show its picture and answer controls. None when the session is complete.
+    item_id: str | None = None
+    channel: str | None = None
 
 
 class SubmitResponseRequest(BaseModel):
     session_id: uuid.UUID
-    raw_response: str
-    response_time_ms: int | None = None
+    raw_response: str = Field(max_length=4000)
+    response_time_ms: int | None = Field(default=None, ge=0)
+    # Optional guard: the item the client believes it is answering. If it is
+    # not the waiting item the answer is rejected (409) instead of landing on
+    # the wrong question.
+    item_id: str | None = None
 
 
 # --- Mock WhatsApp webhook ----------------------------------------------------
@@ -73,7 +81,9 @@ class PortfolioResponse(BaseModel):
 
 # --- Panel review -------------------------------------------------------------
 class DecisionRequest(BaseModel):
-    reviewer_id: str
+    # Ignored: the reviewer is taken from the sign-in token. Kept optional so
+    # older clients that still send it don't break.
+    reviewer_id: str | None = None
     decision: PanelDecision
     notes: str | None = None
 

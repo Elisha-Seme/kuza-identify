@@ -42,7 +42,8 @@ class TwilioWhatsAppProvider(WhatsAppProvider):
         resp = httpx.post(
             f"{_API_BASE}/Accounts/{self._sid}/Messages.json",
             auth=(self._sid, self._token),
-            data={"From": self._from, "To": to, "Body": message.text},
+            data={"From": self._from, "To": to, "Body": message.text,
+                  **({"MediaUrl": message.media_url} if message.media_url else {})},
             timeout=15.0,
         )
         resp.raise_for_status()
