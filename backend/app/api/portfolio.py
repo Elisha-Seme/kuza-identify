@@ -5,9 +5,10 @@ signals. Evidence only — never a score, never a decision.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
+from app.core.auth import client_ip, rate_limit
 from app.core.db import get_db
 from app.schemas.api import PortfolioRequest, PortfolioResponse
 from app.services.portfolio import service as portfolio
@@ -16,7 +17,8 @@ router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
 
 @router.post("", response_model=PortfolioResponse)
-def submit(body: PortfolioRequest, db: Session = Depends(get_db)):
+def submit(body: PortfolioRequest, request: Request, db: Session = Depends(get_db)):
+    rate_limit(f"portfolio:{client_ip(request)}", limit=20, window_s=3600)
     result = portfolio.submit_portfolio(
         db,
         school_id=body.school_id,

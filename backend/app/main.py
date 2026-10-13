@@ -9,7 +9,11 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, nomination, panel, portfolio, screening
+from sqlalchemy import inspect
+
+from app.api import admin, auth, chatbot, nomination, panel, portfolio, screening
+from app.core.auth import is_local_dev
+from app.core.db import engine
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -31,11 +35,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(screening.router)
 app.include_router(nomination.router)
 app.include_router(panel.router)
 app.include_router(admin.router)
 app.include_router(portfolio.router)
+app.include_router(chatbot.router)
 
 
 @app.get("/", tags=["meta"])
@@ -56,10 +62,33 @@ def root() -> dict:
     }
 
 
+_EXPECTED_TABLES = {
+    "schools", "learners", "screening_sessions", "item_responses", "domain_scores",
+    "flag_events", "panel_reviews", "decision_audit_log", "portfolio_submissions",
+    "staff_users", "channel_bindings",
+}
+
+
+def _missing_tables() -> list[str] | str:
+    try:
+        return sorted(_EXPECTED_TABLES - set(inspect(engine).get_table_names()))
+    except Exception:  # pragma: no cover - DB unreachable
+        return "database unreachable"
+
+
 @app.get("/health", tags=["meta"])
 def health() -> dict:
+    missing = _missing_tables()
     return {
-        "status": "ok",
+        "status": "ok" if not missing else "degraded",
+        # Non-empty => run POST /admin/init once (X-Admin-Token header) to
+        # create the missing tables/columns. A missing portfolio_submissions
+        # table is what makes /panel/flagged return 500.
+        "missing_tables": missing,
+        "auth": "configured" if settings.auth_secret else ("local-dev" if is_local_dev() else "NOT CONFIGURED (set AUTH_SECRET)"),
         "llm_scoring": "live" if settings.llm_enabled else "mock (no ANTHROPIC_API_KEY)",
         "whatsapp_provider": settings.whatsapp_provider,
+        "sms_provider": settings.sms_provider,
+        "ussd_provider": settings.ussd_provider,
+        "chatbot": "live" if settings.llm_enabled else "mock (no ANTHROPIC_API_KEY)",
     }

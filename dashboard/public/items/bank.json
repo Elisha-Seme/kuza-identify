@@ -1,0 +1,1389 @@
+{
+  "session_intro": {
+    "en": "Hi, I'm Kuza! These are puzzles and stories, not a test. There's no time limit. Send 'skip' to skip one, 'hint' for a clue, 'repeat' to see it again, or 'pause' to stop and come back later. Answer however you like: tap, type, talk or draw. Some puzzles have no single right answer. We want to see how you think.",
+    "sw": "Habari, mimi ni Kuza! Haya ni mafumbo na hadithi, si mtihani. Hakuna muda uliowekwa. Tuma 'ruka' kuruka, 'dokezo' kupata msaada, 'rudia' kuona tena, au 'pumzika' kusimama na kurudi baadaye. Jibu unavyopenda: gusa, andika, ongea au chora. Mafumbo mengine hayana jibu moja sahihi. Tunataka kuona jinsi unavyofikiri."
+  },
+  "control_words": {
+    "skip": {
+      "en": [
+        "skip"
+      ],
+      "sw": [
+        "ruka"
+      ]
+    },
+    "hint": {
+      "en": [
+        "hint"
+      ],
+      "sw": [
+        "dokezo"
+      ]
+    },
+    "repeat": {
+      "en": [
+        "repeat"
+      ],
+      "sw": [
+        "rudia"
+      ]
+    },
+    "pause": {
+      "en": [
+        "pause"
+      ],
+      "sw": [
+        "pumzika"
+      ]
+    }
+  },
+  "domains": [
+    "numerical_reasoning",
+    "verbal_reasoning",
+    "pattern_recognition",
+    "logical_reasoning",
+    "working_memory"
+  ],
+  "extra_domains": [
+    "creativity",
+    "interests"
+  ],
+  "items": [
+    {
+      "id": "num-p1",
+      "domain": "numerical_reasoning",
+      "difficulty": 1,
+      "type": "choice",
+      "prompt": {
+        "en": "Kuza found 3 baskets with 4 mangoes in each, and 2 more mangoes on the ground. How many mangoes are there altogether?",
+        "sw": "Kuza alipata vikapu 3, kila kimoja kina maembe 4, na maembe mengine 2 chini. Kuna maembe mangapi kwa jumla?"
+      },
+      "image": "svg/num-p1.svg",
+      "choices": [
+        {
+          "en": "12",
+          "sw": "12"
+        },
+        {
+          "en": "14",
+          "sw": "14"
+        },
+        {
+          "en": "16",
+          "sw": "16"
+        },
+        {
+          "en": "10",
+          "sw": "10"
+        }
+      ],
+      "text_fallback": {
+        "en": "3 baskets x 4 mangoes, plus 2 more. How many? 1) 12 2) 14 3) 16 4) 10",
+        "sw": "Vikapu 3 x maembe 4, ongeza 2. Mangapi? 1) 12 2) 14 3) 16 4) 10"
+      },
+      "hints": [
+        {
+          "en": "Count one basket first.",
+          "sw": "Hesabu kikapu kimoja kwanza."
+        },
+        {
+          "en": "4 + 4 + 4 is 12. Now add the 2 on the ground.",
+          "sw": "4 + 4 + 4 ni 12. Sasa ongeza 2 zilizo chini."
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "image_png": "png/num-p1.png"
+    },
+    {
+      "id": "num-p2",
+      "domain": "numerical_reasoning",
+      "difficulty": 2,
+      "type": "open_ended",
+      "tier": "core",
+      "prompt": {
+        "en": "Kuza has these coins: 20, 10, 10, 5 and 1 shilling. A mandazi costs 40 shillings. Can Kuza buy it? How much money is left after?",
+        "sw": "Kuza ana sarafu hizi: shilingi 20, 10, 10, 5 na 1. Mandazi linauzwa shilingi 40. Je, Kuza anaweza kulinunua? Atabaki na pesa ngapi?"
+      },
+      "image": "svg/num-p2.svg",
+      "response_modes": [
+        "type",
+        "voice",
+        "tap"
+      ],
+      "text_fallback": {
+        "en": "Coins: 20, 10, 10, 5, 1. Mandazi costs 40. Can you buy it? How much is left?",
+        "sw": "Sarafu: 20, 10, 10, 5, 1. Mandazi ni 40. Unaweza kununua? Utabaki na ngapi?"
+      },
+      "hints": [
+        {
+          "en": "Add up all the coins first.",
+          "sw": "Jumlisha sarafu zote kwanza."
+        },
+        {
+          "en": "The coins make 46 shillings. What is 46 take away 40?",
+          "sw": "Sarafu ni shilingi 46. 46 toa 40 ni ngapi?"
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "image_png": "png/num-p2.png"
+    },
+    {
+      "id": "num-p3",
+      "domain": "numerical_reasoning",
+      "difficulty": 3,
+      "type": "open_ended",
+      "prompt": {
+        "en": "A shopkeeper buys 12 oranges for 60 shillings and sells them for 8 shillings each. How much profit does she make? Tell us how you worked it out.",
+        "sw": "Mwuzaji ananunua machungwa 12 kwa shilingi 60 na anauza kila moja kwa shilingi 8. Anapata faida kiasi gani? Tueleze ulivyofikia jibu."
+      },
+      "image": "svg/num-p3.svg",
+      "replaces": "num-01",
+      "response_modes": [
+        "type",
+        "voice"
+      ],
+      "text_fallback": {
+        "en": "Buys 12 oranges for 60 bob, sells each for 8 bob. Profit?",
+        "sw": "Ananunua machungwa 12 kwa bob 60, anauza kila moja bob 8. Faida?"
+      },
+      "hints": [
+        {
+          "en": "How much money does she get if she sells all 12?",
+          "sw": "Atapata pesa ngapi akiuza yote 12?"
+        },
+        {
+          "en": "12 x 8 = 96. Now take away what she paid.",
+          "sw": "12 x 8 = 96. Sasa toa alicholipa."
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "image_png": "png/num-p3.png"
+    },
+    {
+      "id": "num-p4",
+      "domain": "numerical_reasoning",
+      "difficulty": 3,
+      "type": "choice",
+      "prompt": {
+        "en": "This chart shows how many people rode Kuza's matatu each day. If the pattern carries on, how many will ride on Friday?",
+        "sw": "Chati hii inaonyesha watu wangapi walipanda matatu ya Kuza kila siku. Mpangilio ukiendelea, watu wangapi watapanda Ijumaa?"
+      },
+      "image": "svg/num-p4.svg",
+      "choices": [
+        {
+          "en": "25",
+          "sw": "25"
+        },
+        {
+          "en": "28",
+          "sw": "28"
+        },
+        {
+          "en": "30",
+          "sw": "30"
+        },
+        {
+          "en": "35",
+          "sw": "35"
+        }
+      ],
+      "text_fallback": {
+        "en": "Matatu riders: Mon 10, Tue 15, Wed 20, Thu 25. Friday? 1) 25 2) 28 3) 30 4) 35",
+        "sw": "Wasafiri: Jtatu 10, Jnne 15, Jtano 20, Alhamisi 25. Ijumaa? 1) 25 2) 28 3) 30 4) 35"
+      },
+      "hints": [
+        {
+          "en": "How much bigger is each bar than the one before?",
+          "sw": "Kila nguzo inazidi iliyotangulia kwa kiasi gani?"
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "image_png": "png/num-p4.png"
+    },
+    {
+      "id": "num-p5",
+      "domain": "numerical_reasoning",
+      "difficulty": 5,
+      "type": "open_ended",
+      "prompt": {
+        "en": "On this balance, 2 mangoes weigh the same as 6 bananas. How many bananas would weigh the same as 3 mangoes? Explain.",
+        "sw": "Kwenye mizani hii, maembe 2 yana uzito sawa na ndizi 6. Ndizi ngapi zingekuwa na uzito sawa na maembe 3? Eleza."
+      },
+      "image": "svg/num-p5.svg",
+      "response_modes": [
+        "type",
+        "voice",
+        "draw"
+      ],
+      "text_fallback": {
+        "en": "2 mangoes weigh the same as 6 bananas. 3 mangoes = how many bananas?",
+        "sw": "Maembe 2 = ndizi 6 kwa uzito. Maembe 3 = ndizi ngapi?"
+      },
+      "hints": [
+        {
+          "en": "What does ONE mango weigh, in bananas?",
+          "sw": "Embe MOJA lina uzito wa ndizi ngapi?"
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "image_png": "png/num-p5.png"
+    },
+    {
+      "id": "num-p6-offlevel",
+      "domain": "numerical_reasoning",
+      "difficulty": 7,
+      "type": "open_ended",
+      "tier": "bonus_off_level",
+      "prompt": {
+        "en": "3 chapatis must be shared fairly between 4 children. How much does each child get? You can draw how you would cut them.",
+        "sw": "Chapati 3 zinagawanywa kwa haki kati ya watoto 4. Kila mtoto anapata kiasi gani? Unaweza kuchora jinsi ungezikata."
+      },
+      "image": "svg/num-p6.svg",
+      "response_modes": [
+        "draw",
+        "photo",
+        "voice",
+        "type"
+      ],
+      "text_fallback": {
+        "en": "Share 3 chapatis fairly among 4 children. How much each?",
+        "sw": "Gawa chapati 3 kwa haki kwa watoto 4. Kila mmoja anapata kiasi gani?"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "facilitator_cards",
+        "paper_photo"
+      ],
+      "hints": [],
+      "image_png": "png/num-p6.png"
+    },
+    {
+      "id": "vrb-p1",
+      "domain": "verbal_reasoning",
+      "difficulty": 1,
+      "type": "choice",
+      "prompt": {
+        "en": "Which one does not belong with the others? Why?",
+        "sw": "Kipi hakiendani na vingine? Kwa nini?"
+      },
+      "image": "svg/vrb-p1.svg",
+      "choices": [
+        {
+          "en": "Mango",
+          "sw": "Embe"
+        },
+        {
+          "en": "Orange",
+          "sw": "Chungwa"
+        },
+        {
+          "en": "Ball",
+          "sw": "Mpira"
+        },
+        {
+          "en": "Banana",
+          "sw": "Ndizi"
+        }
+      ],
+      "text_fallback": {
+        "en": "Which does not belong: 1) mango 2) orange 3) ball 4) banana",
+        "sw": "Kipi si cha kundi: 1) embe 2) chungwa 3) mpira 4) ndizi"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "hints": [],
+      "image_png": "png/vrb-p1.png"
+    },
+    {
+      "id": "vrb-p2",
+      "domain": "verbal_reasoning",
+      "difficulty": 3,
+      "type": "choice",
+      "replaces": "vrb-01",
+      "prompt": {
+        "en": "A hoe is to a farmer as a net is to a ... ? Choose one. You can also say why, but you don't have to.",
+        "sw": "Jembe ni kwa mkulima kama wavu ni kwa ... ? Chagua moja. Unaweza kueleza sababu, lakini si lazima."
+      },
+      "choices": [
+        {
+          "en": "Fisherman",
+          "sw": "Mvuvi"
+        },
+        {
+          "en": "Tailor",
+          "sw": "Fundi cherehani"
+        },
+        {
+          "en": "Driver",
+          "sw": "Dereva"
+        },
+        {
+          "en": "Teacher",
+          "sw": "Mwalimu"
+        }
+      ],
+      "text_fallback": {
+        "en": "Hoe is to farmer as net is to: 1) fisherman 2) tailor 3) driver 4) teacher",
+        "sw": "Jembe kwa mkulima kama wavu kwa: 1) mvuvi 2) fundi cherehani 3) dereva 4) mwalimu"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "hints": []
+    },
+    {
+      "id": "vrb-p3",
+      "domain": "verbal_reasoning",
+      "difficulty": 2,
+      "type": "order",
+      "tier": "core",
+      "prompt": {
+        "en": "These pictures are mixed up. Put them in the right order, then tell the story in your own words.",
+        "sw": "Picha hizi zimechanganyika. Zipange kwa mpangilio sahihi, kisha usimulie hadithi kwa maneno yako."
+      },
+      "image": "svg/vrb-p3.svg",
+      "choices": [
+        {
+          "en": "A",
+          "sw": "A"
+        },
+        {
+          "en": "B",
+          "sw": "B"
+        },
+        {
+          "en": "C",
+          "sw": "C"
+        },
+        {
+          "en": "D",
+          "sw": "D"
+        }
+      ],
+      "response_modes": [
+        "drag",
+        "type",
+        "voice"
+      ],
+      "text_fallback": {
+        "en": "Put in order: A young plant, B seed in soil, C tall maize with a cob, D small sprout. Reply like: BDAC",
+        "sw": "Panga: A mmea mchanga, B mbegu udongoni, C mhindi mrefu wenye gunzi, D chipukizi dogo. Jibu kama: BDAC"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "hints": [],
+      "image_png": "png/vrb-p3.png"
+    },
+    {
+      "id": "vrb-p4",
+      "domain": "verbal_reasoning",
+      "difficulty": 4,
+      "type": "open_ended",
+      "prompt": {
+        "en": "There is a saying: 'Haba na haba hujaza kibaba' (little by little fills the measure). What do you think it means? Tell us about a time it was true.",
+        "sw": "Kuna methali: 'Haba na haba hujaza kibaba.' Unadhani ina maana gani? Tueleze wakati ambao ilikuwa kweli."
+      },
+      "image": "svg/vrb-p4.svg",
+      "response_modes": [
+        "voice",
+        "type"
+      ],
+      "text_fallback": {
+        "en": "What does 'Haba na haba hujaza kibaba' mean? Give an example.",
+        "sw": "'Haba na haba hujaza kibaba' ina maana gani? Toa mfano."
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "hints": [],
+      "image_png": "png/vrb-p4.png"
+    },
+    {
+      "id": "vrb-p5",
+      "domain": "verbal_reasoning",
+      "difficulty": 3,
+      "type": "open_ended",
+      "prompt": {
+        "en": "Kitendawili! 'My house has no door.' What am I? Which clue helped you?",
+        "sw": "Kitendawili! 'Nyumba yangu haina mlango.' Mimi ni nini? Ni dokezo gani lilikusaidia?"
+      },
+      "image": "svg/vrb-p5.svg",
+      "response_modes": [
+        "voice",
+        "type"
+      ],
+      "text_fallback": {
+        "en": "Riddle: My house has no door. What am I?",
+        "sw": "Kitendawili: Nyumba yangu haina mlango. Mimi ni nini?"
+      },
+      "hints": [
+        {
+          "en": "Something comes OUT of it, but there is no door to open.",
+          "sw": "Kitu hutoka NDANI yake, lakini hakuna mlango wa kufungua."
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "image_png": "png/vrb-p5.png"
+    },
+    {
+      "id": "pat-p1",
+      "domain": "pattern_recognition",
+      "difficulty": 1,
+      "type": "choice",
+      "prompt": {
+        "en": "Kuza is making a bead necklace. Which bead comes next?",
+        "sw": "Kuza anatengeneza mkufu wa shanga. Shanga ipi inafuata?"
+      },
+      "image": "svg/pat-p1.svg",
+      "choices": [
+        {
+          "en": "Red circle",
+          "sw": "Duara jekundu"
+        },
+        {
+          "en": "Blue square",
+          "sw": "Mraba wa buluu"
+        },
+        {
+          "en": "Yellow triangle",
+          "sw": "Pembetatu ya njano"
+        },
+        {
+          "en": "Red square",
+          "sw": "Mraba mwekundu"
+        }
+      ],
+      "text_fallback": {
+        "en": "Beads: red circle, blue square, red circle, blue square, red circle, ? 1) red circle 2) blue square 3) yellow triangle 4) red square",
+        "sw": "Shanga: duara jekundu, mraba buluu, duara jekundu, mraba buluu, duara jekundu, ? 1) duara jekundu 2) mraba buluu 3) pembetatu njano 4) mraba mwekundu"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "hints": [],
+      "image_png": "png/pat-p1.png"
+    },
+    {
+      "id": "pat-p2",
+      "domain": "pattern_recognition",
+      "difficulty": 3,
+      "type": "choice",
+      "prompt": {
+        "en": "1 square needs 4 sticks, 2 squares need 7, 3 squares need 10. How many sticks for 4 squares? What is the rule?",
+        "sw": "Mraba 1 unahitaji vijiti 4, miraba 2 inahitaji 7, miraba 3 inahitaji 10. Miraba 4 itahitaji vijiti vingapi? Kanuni ni ipi?"
+      },
+      "image": "svg/pat-p2.svg",
+      "choices": [
+        {
+          "en": "12",
+          "sw": "12"
+        },
+        {
+          "en": "13",
+          "sw": "13"
+        },
+        {
+          "en": "14",
+          "sw": "14"
+        },
+        {
+          "en": "16",
+          "sw": "16"
+        }
+      ],
+      "text_fallback": {
+        "en": "Stick squares: 1 square=4, 2=7, 3=10. 4 squares=? 1) 12 2) 13 3) 14 4) 16",
+        "sw": "Miraba ya vijiti: 1=4, 2=7, 3=10. 4=? 1) 12 2) 13 3) 14 4) 16"
+      },
+      "hints": [
+        {
+          "en": "Look at how many new sticks you add each time.",
+          "sw": "Angalia unaongeza vijiti vipya vingapi kila mara."
+        }
+      ],
+      "response_modes": [
+        "tap",
+        "type",
+        "voice",
+        "hands_on"
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards",
+        "hands_on_sticks"
+      ],
+      "tier": "pool",
+      "image_png": "png/pat-p2.png"
+    },
+    {
+      "id": "pat-p3",
+      "domain": "pattern_recognition",
+      "difficulty": 4,
+      "type": "open_ended",
+      "replaces": "pat-01",
+      "prompt": {
+        "en": "What number comes next: 2, 6, 12, 20, 30, ? The dot pictures might help. Tell us the rule you found.",
+        "sw": "Nambari ipi inafuata: 2, 6, 12, 20, 30, ? Picha za vitone zinaweza kukusaidia. Tueleze kanuni uliyoipata."
+      },
+      "image": "svg/pat-p3.svg",
+      "response_modes": [
+        "type",
+        "voice",
+        "tap"
+      ],
+      "text_fallback": {
+        "en": "What comes next: 2, 6, 12, 20, 30, ? Tell the rule.",
+        "sw": "Nini kinafuata: 2, 6, 12, 20, 30, ? Eleza kanuni."
+      },
+      "hints": [
+        {
+          "en": "Look at the gaps between the numbers: 4, 6, 8...",
+          "sw": "Angalia tofauti kati ya nambari: 4, 6, 8..."
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "image_png": "png/pat-p3.png"
+    },
+    {
+      "id": "pat-p4",
+      "domain": "pattern_recognition",
+      "difficulty": 4,
+      "type": "choice",
+      "tier": "core",
+      "prompt": {
+        "en": "Look at the grid. Which picture fits in the empty box?",
+        "sw": "Tazama gridi. Picha ipi inafaa kwenye kisanduku kitupu?"
+      },
+      "image": "svg/pat-p4.svg",
+      "choices": [
+        {
+          "en": "A",
+          "sw": "A"
+        },
+        {
+          "en": "B",
+          "sw": "B"
+        },
+        {
+          "en": "C",
+          "sw": "C"
+        },
+        {
+          "en": "D",
+          "sw": "D"
+        }
+      ],
+      "text_fallback": {
+        "en": "Row 1: 1 circle, 2 circles, 3 circles. Row 2: 1 square, 2 squares, 3 squares. Row 3: 1 triangle, 2 triangles, ? 1) 2 triangles 2) 3 squares 3) 3 triangles 4) 3 circles",
+        "sw": "Safu 1: duara 1, 2, 3. Safu 2: mraba 1, 2, 3. Safu 3: pembetatu 1, 2, ? 1) pembetatu 2 2) miraba 3 3) pembetatu 3 4) duara 3"
+      },
+      "hints": [
+        {
+          "en": "What is the same across each row? What changes as you go right?",
+          "sw": "Nini kinafanana kwenye kila safu? Nini kinabadilika ukienda kulia?"
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "image_png": "png/pat-p4.png"
+    },
+    {
+      "id": "pat-p5",
+      "domain": "pattern_recognition",
+      "difficulty": 5,
+      "type": "choice",
+      "prompt": {
+        "en": "The arrow turns a little each time. Which arrow comes next?",
+        "sw": "Mshale unageuka kidogo kila mara. Mshale upi unafuata?"
+      },
+      "image": "svg/pat-p5.svg",
+      "choices": [
+        {
+          "en": "A",
+          "sw": "A"
+        },
+        {
+          "en": "B",
+          "sw": "B"
+        },
+        {
+          "en": "C",
+          "sw": "C"
+        },
+        {
+          "en": "D",
+          "sw": "D"
+        }
+      ],
+      "text_fallback": {
+        "en": "An arrow points right, then down, then left. Next? 1) right 2) up 3) down 4) left",
+        "sw": "Mshale unaelekea kulia, kisha chini, kisha kushoto. Unaofuata? 1) kulia 2) juu 3) chini 4) kushoto"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "hints": [],
+      "image_png": "png/pat-p5.png"
+    },
+    {
+      "id": "pat-p6-offlevel",
+      "domain": "pattern_recognition",
+      "difficulty": 7,
+      "type": "open_ended",
+      "tier": "bonus_off_level",
+      "replaces": "pat-02-offlevel",
+      "prompt": {
+        "en": "What are the next three symbols? What are the TWO rules working together?",
+        "sw": "Alama tatu zinazofuata ni zipi? Kanuni MBILI zinazofanya kazi pamoja ni zipi?"
+      },
+      "image": "svg/pat-p6.svg",
+      "response_modes": [
+        "type",
+        "voice",
+        "tap"
+      ],
+      "text_fallback": {
+        "en": "sun-sun-moon, moon-moon-sun, sun-sun-moon, moon-moon-sun, ?-?-?",
+        "sw": "jua-jua-mwezi, mwezi-mwezi-jua, jua-jua-mwezi, mwezi-mwezi-jua, ?-?-?"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "hints": [],
+      "image_png": "png/pat-p6.png"
+    },
+    {
+      "id": "log-p1",
+      "domain": "logical_reasoning",
+      "difficulty": 2,
+      "type": "choice",
+      "prompt": {
+        "en": "Amani is taller than Baraka. Baraka is taller than Chebet. Who is the shortest?",
+        "sw": "Amani ni mrefu kuliko Baraka. Baraka ni mrefu kuliko Chebet. Nani ni mfupi kuliko wote?"
+      },
+      "image": "svg/log-p1.svg",
+      "choices": [
+        {
+          "en": "Amani",
+          "sw": "Amani"
+        },
+        {
+          "en": "Baraka",
+          "sw": "Baraka"
+        },
+        {
+          "en": "Chebet",
+          "sw": "Chebet"
+        },
+        {
+          "en": "We can't tell",
+          "sw": "Hatuwezi kujua"
+        }
+      ],
+      "text_fallback": {
+        "en": "Amani taller than Baraka. Baraka taller than Chebet. Shortest? 1) Amani 2) Baraka 3) Chebet 4) can't tell",
+        "sw": "Amani mrefu kuliko Baraka. Baraka mrefu kuliko Chebet. Mfupi zaidi? 1) Amani 2) Baraka 3) Chebet 4) hatujui"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "hints": [],
+      "image_png": "png/log-p1.png"
+    },
+    {
+      "id": "log-p2",
+      "domain": "logical_reasoning",
+      "difficulty": 4,
+      "type": "open_ended",
+      "prompt": {
+        "en": "Kuza walks from Home to School, but must stop at the Market to buy bread. The road from Market to School is closed today (red X). Which way should Kuza go, passing the fewest places?",
+        "sw": "Kuza anatembea kutoka Nyumbani kwenda Shuleni, lakini lazima asimame Sokoni kununua mkate. Barabara ya Sokoni hadi Shuleni imefungwa leo (X nyekundu). Kuza apite njia gani, akipita sehemu chache zaidi?"
+      },
+      "image": "svg/log-p2.svg",
+      "response_modes": [
+        "tap",
+        "type",
+        "voice",
+        "draw"
+      ],
+      "text_fallback": {
+        "en": "Roads: Home-Market, Home-Church, Church-Clinic, Market-Clinic, Clinic-School. (Market-School closed.) Go Home to School via Market. Which way?",
+        "sw": "Barabara: Nyumbani-Sokoni, Nyumbani-Kanisani, Kanisani-Kliniki, Sokoni-Kliniki, Kliniki-Shuleni. (Sokoni-Shuleni imefungwa.) Nenda Nyumbani hadi Shuleni ukipitia Sokoni. Njia ipi?"
+      },
+      "hints": [
+        {
+          "en": "First go to the Market. From the Market, which roads are still open?",
+          "sw": "Kwanza nenda Sokoni. Kutoka Sokoni, barabara zipi bado ziko wazi?"
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "image_png": "png/log-p2.png"
+    },
+    {
+      "id": "log-p3",
+      "domain": "logical_reasoning",
+      "difficulty": 4,
+      "type": "open_ended",
+      "replaces": "log-01",
+      "prompt": {
+        "en": "All the children who passed the test studied. Amina did not study. Can we be sure Amina did not pass? Explain your answer.",
+        "sw": "Watoto wote waliofaulu mtihani walisoma. Amina hakusoma. Je, tunaweza kuwa na uhakika kwamba Amina hakufaulu? Eleza jibu lako."
+      },
+      "response_modes": [
+        "type",
+        "voice",
+        "tap"
+      ],
+      "choices": [
+        {
+          "en": "Yes, we can be sure",
+          "sw": "Ndiyo, tuna uhakika"
+        },
+        {
+          "en": "No, we can't be sure",
+          "sw": "Hapana, hatuna uhakika"
+        }
+      ],
+      "text_fallback": {
+        "en": "All who passed studied. Amina did not study. Sure Amina did not pass? 1) yes 2) no. Why?",
+        "sw": "Wote waliofaulu walisoma. Amina hakusoma. Una uhakika hakufaulu? 1) ndiyo 2) hapana. Kwa nini?"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "hints": []
+    },
+    {
+      "id": "log-p4",
+      "domain": "logical_reasoning",
+      "difficulty": 4,
+      "type": "order",
+      "tier": "core",
+      "prompt": {
+        "en": "Three friends sit on a bench. Wanjiru sits on the LEFT end. Otieno does NOT sit next to Wanjiru. Who sits in the middle?",
+        "sw": "Marafiki watatu wanakaa kwenye benchi. Wanjiru anakaa mwisho wa KUSHOTO. Otieno HAKAI karibu na Wanjiru. Nani anakaa katikati?"
+      },
+      "image": "svg/log-p4.svg",
+      "choices": [
+        {
+          "en": "Wanjiru",
+          "sw": "Wanjiru"
+        },
+        {
+          "en": "Otieno",
+          "sw": "Otieno"
+        },
+        {
+          "en": "Fatuma",
+          "sw": "Fatuma"
+        }
+      ],
+      "response_modes": [
+        "drag",
+        "tap",
+        "type",
+        "voice",
+        "hands_on"
+      ],
+      "text_fallback": {
+        "en": "3 seats. Wanjiru on the left end. Otieno not next to Wanjiru. Who is in the middle? 1) Wanjiru 2) Otieno 3) Fatuma",
+        "sw": "Viti 3. Wanjiru mwisho wa kushoto. Otieno si karibu na Wanjiru. Nani katikati? 1) Wanjiru 2) Otieno 3) Fatuma"
+      },
+      "hints": [
+        {
+          "en": "If Otieno can't be next to Wanjiru, where is the only seat left for him?",
+          "sw": "Kama Otieno hawezi kukaa karibu na Wanjiru, kiti kipi pekee kimebaki kwake?"
+        }
+      ],
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards",
+        "hands_on_role_play"
+      ],
+      "image_png": "png/log-p4.png"
+    },
+    {
+      "id": "log-p5-offlevel",
+      "domain": "logical_reasoning",
+      "difficulty": 7,
+      "type": "open_ended",
+      "tier": "bonus_off_level",
+      "replaces": "log-02-offlevel",
+      "prompt": {
+        "en": "If it is true that 'every learner on the football team also plays music', and Juma plays music, can we be sure Juma is on the football team? And if Juma is NOT on the team, could he still play music? Explain both.",
+        "sw": "Ikiwa ni kweli kwamba 'kila mwanafunzi aliye kwenye timu ya mpira pia hucheza muziki', na Juma hucheza muziki, je tuna uhakika Juma yuko kwenye timu? Na ikiwa Juma HAYUKO kwenye timu, je bado anaweza kucheza muziki? Eleza yote mawili."
+      },
+      "response_modes": [
+        "type",
+        "voice"
+      ],
+      "text_fallback": {
+        "en": "Every football player plays music. Juma plays music. Is he on the team for sure? If not on the team, can he play music?",
+        "sw": "Kila mchezaji wa mpira hucheza muziki. Juma hucheza muziki. Ana uhakika yuko timu? Asipokuwa timu, anaweza kucheza muziki?"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "hints": []
+    },
+    {
+      "id": "wmm-p1",
+      "domain": "working_memory",
+      "difficulty": 1,
+      "type": "choice",
+      "tier": "core",
+      "prompt": {
+        "en": "Look carefully at the 4 pictures. When they disappear, find the one that is NEW.",
+        "sw": "Tazama picha 4 kwa makini. Zikipotea, tafuta ile iliyo MPYA."
+      },
+      "image": "svg/wmm-p1-show.svg",
+      "image_after": "svg/wmm-p1-ask.svg",
+      "show_seconds": 6,
+      "show_script": {
+        "en": "mango, key, fish, star",
+        "sw": "embe, ufunguo, samaki, nyota"
+      },
+      "ask_prompt": {
+        "en": "Which one is NEW?",
+        "sw": "Kipi ni KIPYA?"
+      },
+      "choices": [
+        {
+          "en": "Mango",
+          "sw": "Embe"
+        },
+        {
+          "en": "Cup",
+          "sw": "Kikombe"
+        },
+        {
+          "en": "Fish",
+          "sw": "Samaki"
+        },
+        {
+          "en": "Star",
+          "sw": "Nyota"
+        }
+      ],
+      "text_fallback": {
+        "en": "Listen: mango, key, fish, star. Now: mango, cup, fish, star. Which is new? 1) mango 2) cup 3) fish 4) star",
+        "sw": "Sikiliza: embe, ufunguo, samaki, nyota. Sasa: embe, kikombe, samaki, nyota. Kipi kipya? 1) embe 2) kikombe 3) samaki 4) nyota"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_view_once",
+        "ivr_voice",
+        "facilitator_cards"
+      ],
+      "response_modes": [
+        "tap",
+        "type",
+        "voice"
+      ],
+      "hints": [],
+      "image_png": "png/wmm-p1-show.png",
+      "image_after_png": "png/wmm-p1-ask.png"
+    },
+    {
+      "id": "wmm-p2",
+      "domain": "working_memory",
+      "difficulty": 2,
+      "type": "open_ended",
+      "replaces": "wmm-01",
+      "prompt": {
+        "en": "Look at (or listen to) the 5 things in the picture, once. When they're gone, say them BACKWARDS. Did you use a trick to remember?",
+        "sw": "Tazama (au sikiliza) vitu 5 kwenye picha, mara moja. Vikitoweka, visema KINYUME. Ulitumia mbinu yoyote kukumbuka?"
+      },
+      "image": "svg/wmm-p2-show.svg",
+      "show_seconds": 8,
+      "show_script": {
+        "en": "mango, chair, river, seven, blue",
+        "sw": "embe, kiti, mto, saba, bluu"
+      },
+      "ask_prompt": {
+        "en": "Now say the 5 things BACKWARDS, last one first. Did you use a trick to remember?",
+        "sw": "Sasa sema vitu 5 KINYUME, cha mwisho kwanza. Ulitumia mbinu yoyote kukumbuka?"
+      },
+      "response_modes": [
+        "voice",
+        "type",
+        "drag"
+      ],
+      "text_fallback": {
+        "en": "Remember: mango, chair, river, seven, blue. (Next message asks you.)",
+        "sw": "Kumbuka: embe, kiti, mto, saba, bluu. (Ujumbe ujao utakuuliza.)"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_view_once",
+        "ivr_voice",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "hints": [],
+      "image_png": "png/wmm-p2-show.png"
+    },
+    {
+      "id": "wmm-p3",
+      "domain": "working_memory",
+      "difficulty": 3,
+      "type": "order",
+      "prompt": {
+        "en": "Watch Kuza's footsteps on the grid. When they disappear, tap the same path from the green start square.",
+        "sw": "Tazama nyayo za Kuza kwenye gridi. Zikipotea, gusa njia ileile kuanzia kisanduku cha kijani."
+      },
+      "image": "svg/wmm-p3-show.svg",
+      "image_after": "svg/wmm-p3-ask.svg",
+      "show_seconds": 6,
+      "show_script": {
+        "en": "up, right, right, up, right",
+        "sw": "juu, kulia, kulia, juu, kulia"
+      },
+      "ask_prompt": {
+        "en": "Now tap the arrows to make the same path from the green square.",
+        "sw": "Sasa gusa mishale kutengeneza njia ileile kuanzia kisanduku cha kijani."
+      },
+      "response_modes": [
+        "tap",
+        "voice",
+        "type"
+      ],
+      "text_fallback": {
+        "en": "Listen to the directions once: up, right, right, up, right. Now say them BACKWARDS.",
+        "sw": "Sikiliza maelekezo mara moja: juu, kulia, kulia, juu, kulia. Sasa yaseme KINYUME."
+      },
+      "delivery": [
+        "web_play",
+        "ivr_voice",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "hints": [],
+      "image_png": "png/wmm-p3-show.png",
+      "image_after_png": "png/wmm-p3-ask.png"
+    },
+    {
+      "id": "wmm-p4",
+      "domain": "working_memory",
+      "difficulty": 4,
+      "type": "open_ended",
+      "prompt": {
+        "en": "Listen once. At the market Kuza buys 2 tomatoes for 10 shillings each, 1 onion for 5 shillings, and a loaf of bread for 50 shillings. How much did Kuza spend altogether?",
+        "sw": "Sikiliza mara moja. Sokoni Kuza ananunua nyanya 2 kwa shilingi 10 kila moja, kitunguu 1 kwa shilingi 5, na mkate kwa shilingi 50. Kuza alitumia pesa ngapi kwa jumla?"
+      },
+      "audio_only": true,
+      "response_modes": [
+        "voice",
+        "type",
+        "tap"
+      ],
+      "text_fallback": {
+        "en": "(Spoken once) 2 tomatoes at 10, 1 onion at 5, bread at 50. Total?",
+        "sw": "(Husemwa mara moja) nyanya 2 kwa 10, kitunguu 1 kwa 5, mkate 50. Jumla?"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_voice",
+        "ivr_voice",
+        "facilitator_cards"
+      ],
+      "tier": "pool",
+      "hints": []
+    },
+    {
+      "id": "cre-p1-bonus",
+      "domain": "creativity",
+      "difficulty": 3,
+      "type": "open_ended",
+      "tier": "bonus_creativity",
+      "replaces": "cre-01-bonus",
+      "prompt": {
+        "en": "How many different ways could you use an empty plastic bucket, other than carrying water? Say or list as many as you can.",
+        "sw": "Ni njia ngapi tofauti unaweza kutumia ndoo tupu ya plastiki, isipokuwa kubeba maji? Sema au orodhesha nyingi kadri uwezavyo."
+      },
+      "image": "svg/cre-p1.svg",
+      "response_modes": [
+        "voice",
+        "type",
+        "draw"
+      ],
+      "text_fallback": {
+        "en": "List uses for an empty bucket (not carrying water).",
+        "sw": "Orodhesha matumizi ya ndoo tupu (si kubeba maji)."
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "hints": [],
+      "image_png": "png/cre-p1.png"
+    },
+    {
+      "id": "cre-p2-bonus",
+      "domain": "creativity",
+      "difficulty": 3,
+      "type": "draw",
+      "tier": "bonus_creativity",
+      "prompt": {
+        "en": "Turn this squiggle into a picture! Draw on it (or on paper and send a photo). Give your picture a name.",
+        "sw": "Geuza mstari huu kuwa picha! Chora juu yake (au kwenye karatasi kisha tuma picha). Ipe picha yako jina."
+      },
+      "image": "svg/cre-p2.svg",
+      "response_modes": [
+        "draw",
+        "photo",
+        "voice"
+      ],
+      "text_fallback": {
+        "en": "Draw a picture starting from a curvy line. Send a photo and its name.",
+        "sw": "Chora picha ukianza na mstari uliopinda. Tuma picha na jina lake."
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "paper_photo",
+        "facilitator_cards"
+      ],
+      "hints": [],
+      "image_png": "png/cre-p2.png"
+    },
+    {
+      "id": "cre-p3-bonus",
+      "domain": "creativity",
+      "difficulty": 4,
+      "type": "open_ended",
+      "tier": "bonus_creativity",
+      "prompt": {
+        "en": "Imagine it rained MILK instead of water for one whole day where you live. What would happen? Think of as many things as you can.",
+        "sw": "Fikiria mvua ya MAZIWA badala ya maji kwa siku nzima mahali unapoishi. Nini kingetokea? Fikiria mambo mengi kadri uwezavyo."
+      },
+      "image": "svg/cre-p3.svg",
+      "response_modes": [
+        "voice",
+        "type",
+        "draw"
+      ],
+      "text_fallback": {
+        "en": "If it rained milk for a day where you live, what would happen?",
+        "sw": "Kama mvua ya maziwa ingenyesha siku nzima kwako, nini kingetokea?"
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "hints": [],
+      "image_png": "png/cre-p3.png"
+    },
+    {
+      "id": "cre-p4-bonus",
+      "domain": "creativity",
+      "difficulty": 5,
+      "type": "open_ended",
+      "tier": "bonus_creativity",
+      "prompt": {
+        "en": "Carrying water up a steep hill is hard work. Invent something that would make it easier. Draw it, build a model, or explain it.",
+        "sw": "Kubeba maji kupanda mlima mkali ni kazi ngumu. Buni kitu kitakachofanya iwe rahisi. Kichore, jenga kielelezo, au kieleze."
+      },
+      "image": "svg/cre-p4.svg",
+      "response_modes": [
+        "draw",
+        "photo",
+        "voice",
+        "type",
+        "hands_on"
+      ],
+      "text_fallback": {
+        "en": "Invent something to make carrying water up a hill easier. Explain how it works.",
+        "sw": "Buni kitu cha kurahisisha kubeba maji kupanda mlima. Eleza kinavyofanya kazi."
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards",
+        "paper_photo",
+        "hands_on_model"
+      ],
+      "hints": [],
+      "image_png": "png/cre-p4.png"
+    },
+    {
+      "id": "int-p1",
+      "domain": "interests",
+      "difficulty": 0,
+      "type": "multi_choice",
+      "tier": "warmup_unscored",
+      "prompt": {
+        "en": "Before we start: which of these do you LOVE doing? Pick as many as you like.",
+        "sw": "Kabla hatujaanza: unapenda SANA kufanya yapi kati ya haya? Chagua mengi kadri upendavyo."
+      },
+      "image": "svg/int-p1.svg",
+      "choices": [
+        {
+          "en": "Numbers",
+          "sw": "Nambari"
+        },
+        {
+          "en": "Stories and reading",
+          "sw": "Hadithi na kusoma"
+        },
+        {
+          "en": "Drawing",
+          "sw": "Kuchora"
+        },
+        {
+          "en": "Building things",
+          "sw": "Kujenga vitu"
+        },
+        {
+          "en": "Music",
+          "sw": "Muziki"
+        },
+        {
+          "en": "Nature and animals",
+          "sw": "Mazingira na wanyama"
+        },
+        {
+          "en": "Sport",
+          "sw": "Michezo"
+        },
+        {
+          "en": "Fixing things",
+          "sw": "Kutengeneza vitu"
+        }
+      ],
+      "response_modes": [
+        "tap",
+        "voice",
+        "type"
+      ],
+      "text_fallback": {
+        "en": "What do you love? 1) numbers 2) stories 3) drawing 4) building 5) music 6) nature 7) sport 8) fixing. Send all numbers you like.",
+        "sw": "Unapenda nini? 1) nambari 2) hadithi 3) kuchora 4) kujenga 5) muziki 6) mazingira 7) michezo 8) kutengeneza. Tuma nambari zote unazopenda."
+      },
+      "delivery": [
+        "web_play",
+        "whatsapp_image",
+        "whatsapp_voice",
+        "ivr_voice",
+        "sms_text",
+        "ussd_text",
+        "facilitator_cards"
+      ],
+      "hints": [],
+      "image_png": "png/int-p1.png"
+    }
+  ]
+}

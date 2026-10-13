@@ -58,38 +58,38 @@ def _seed_context_adjustments(db, school: School) -> None:
 # reads like a scorer's note so the dashboard is legible in a walkthrough.
 _EVIDENCE = {
     "numerical_reasoning": {
-        "high": "Worked from unit price to total, then compared cost and revenue to reach the profit. Method sound.",
-        "mid": "Found the total revenue but did not fully net it against the cost, so the final figure was off.",
-        "low": "Attempted a calculation but did not link the quantities into a working method.",
+        "high": "Added the coins to 46, said yes, and gave 6 shillings change; also chose exact coins to hand over (20+10+10). Flexible decomposition.",
+        "mid": "Reached the right total but the change figure was off by a coin.",
+        "low": "Said yes without totalling the coins, so the method was not shown.",
     },
     "verbal_reasoning": {
-        "high": "Chose a well-matched analogy and explained the relationship clearly.",
-        "mid": "Gave a reasonable word but the explanation of the relationship was thin.",
-        "low": "Completed the sentence without showing why the pairing holds.",
+        "high": "Ordered the growth pictures correctly (B D A C) and narrated cause and effect ('it needs rain, then it sprouts').",
+        "mid": "Correct order, with a short list-like story.",
+        "low": "Two pictures out of order; story described pictures one by one.",
     },
     "pattern_recognition": {
-        "high": "Identified the growing-difference rule and extended the sequence correctly.",
-        "mid": "Saw that the gaps grow but applied the step inconsistently near the end.",
-        "low": "Continued the sequence by guessing rather than stating a rule.",
+        "high": "Chose C and named both rules: row sets the shape, column sets the count.",
+        "mid": "Chose C but explained only the counting rule.",
+        "low": "Chose A (right shape, wrong count), so the column rule was missed.",
     },
     "logical_reasoning": {
-        "high": "Reasoned correctly about the conditional and stated the direction of the implication.",
-        "mid": "Reached a defensible answer but the justification was incomplete.",
-        "low": "Did not track the conditional, so the conclusion was unsupported.",
+        "high": "Placed Fatuma in the middle and explained the elimination: Otieno can only go on the right.",
+        "mid": "Right seating, without explaining why.",
+        "low": "Put Otieno in the middle, so the 'not next to' clue was not tracked.",
     },
     "working_memory": {
-        "high": "Recalled the list accurately and described a chunking strategy to hold the order.",
-        "mid": "Recalled most items and used a partial strategy to reverse them.",
-        "low": "Recalled a few items with no described strategy for the order.",
+        "high": "Spotted the new item (cup) and named the missing one (key); described picturing the row left to right.",
+        "mid": "Spotted the new item without a described strategy.",
+        "low": "Chose an item that was in the first picture.",
     },
 }
-# Short, plausible learner answers, so completeness reads 5 of 5 in the UI.
+# Short, plausible learner answers to the v2 core items, keyed by domain.
 _DEMO_ANSWERS = {
-    "numerical_reasoning": "She spends 60 and takes 96, so the profit is 36. I found 12 times 8 first.",
-    "verbal_reasoning": "A net, because a fisherman depends on a net the way a farmer depends on rain.",
-    "pattern_recognition": "42, because the gaps grow 4, 6, 8, 10, so the next gap is 12.",
-    "logical_reasoning": "Yes, if everyone who passed studied, then not studying means she did not pass.",
-    "working_memory": "blue, seven, river, chair, mango. I made a short story to keep the order.",
+    "numerical_reasoning": "Yes. 20 + 10 + 10 + 5 + 1 is 46, so 6 shillings are left. I would give the 20 and the two 10s.",
+    "verbal_reasoning": "B D A C. First the seed is planted, then rain makes it sprout, then it grows leaves, then it is tall maize with a cob.",
+    "pattern_recognition": "C, three triangles. Each row keeps the same shape and each column adds one more.",
+    "logical_reasoning": "Fatuma. Wanjiru is on the left, and Otieno cannot sit next to her, so he must be on the right.",
+    "working_memory": "B, the cup. The key was not there any more.",
 }
 _DEMO_MODEL_VERSION = "screening-demo-v1"
 

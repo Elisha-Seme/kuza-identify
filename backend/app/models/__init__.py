@@ -2,6 +2,7 @@
 autogenerate / metadata sees the full schema."""
 from app.models.entities import (
     CandidateSignal,
+    ChannelBinding,
     ConsentRecord,
     ContextAdjustment,
     DecisionAuditLog,
@@ -15,6 +16,7 @@ from app.models.entities import (
     School,
     SchoolRecordImport,
     ScreeningSession,
+    StaffUser,
 )
 
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "ConsentRecord",
     "DecisionAuditLog",
     "PortfolioSubmission",
+    "StaffUser",
+    "ChannelBinding",
 ]

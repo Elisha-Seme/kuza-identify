@@ -25,6 +25,9 @@ class Channel(str, enum.Enum):
     whatsapp = "whatsapp"
     ussd = "ussd"
     sms = "sms"
+    # Kuza Play on a phone/tablet browser (e.g. a school tablet with a
+    # facilitator). Pictures, read-aloud, tap/drag/draw/voice answers.
+    web = "web"
 
 
 class Language(str, enum.Enum):
@@ -89,3 +92,17 @@ class ConsentScope(str, enum.Enum):
     screening = "screening"
     nomination = "nomination"
     secondary_use_of_school_records = "secondary_use_of_school_records"
+
+
+class StaffRole(str, enum.Enum):
+    """Who may sign in to the staff side of the dashboard, and what they see.
+
+    Learners never sign in (they reach the screener by phone/channel or an
+    invite link) and parents/teachers can still refer without an account.
+    """
+
+    reviewer = "reviewer"                 # reads flagged profiles, records decisions
+    panel_lead = "panel_lead"             # reviewer + calibration / overrides
+    programme_admin = "programme_admin"   # users, schools, demo/bootstrap tools
+    auditor = "auditor"                   # read-only: metrics, bias slices, audit log
+    school_staff = "school_staff"         # starts screening sessions for consented learners

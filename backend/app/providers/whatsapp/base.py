@@ -22,6 +22,9 @@ class InboundMessage:
 class OutboundMessage:
     to_number: str
     text: str
+    # Optional public image URL (question picture). Providers that can't send
+    # media just ignore it; the text always stands on its own.
+    media_url: str | None = None
 
 
 class WhatsAppProvider(Protocol):

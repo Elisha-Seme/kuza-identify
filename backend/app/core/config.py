@@ -32,11 +32,42 @@ class Settings(BaseSettings):
         default="kuza-scoring-v1", alias="SCORING_PROMPT_VERSION"
     )
 
-    # --- WhatsApp provider (Section 6) --------------------------------------
-    # "mock" is the only implementation wired for Phase 0. The interface is
-    # clean so africastalking / twilio can be dropped in without touching the
-    # Screening Gateway.
+    # --- WhatsApp / SMS / USSD providers (Section 6) ------------------------
+    # "mock" (default) needs no credentials. Set to "twilio" (WhatsApp/SMS) or
+    # "africastalking" (USSD) once real credentials are configured below —
+    # the Screening Gateway never changes; only the provider class swaps.
     whatsapp_provider: str = Field(default="mock", alias="WHATSAPP_PROVIDER")
+    sms_provider: str = Field(default="mock", alias="SMS_PROVIDER")
+    ussd_provider: str = Field(default="mock", alias="USSD_PROVIDER")
+
+    # The exact public HTTPS base URL this API is reachable at (e.g.
+    # "https://kuza-identify-api.vercel.app"), no trailing slash. Required to
+    # verify Twilio's X-Twilio-Signature, which is computed over the exact
+    # URL Twilio was configured to call — a request's own Host header can't
+    # be trusted behind a proxy/serverless edge.
+    public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
+
+    # Twilio (WhatsApp + SMS). See console.twilio.com for the Account SID and
+    # Auth Token; the WhatsApp sender is a Twilio WhatsApp-enabled number in
+    # "whatsapp:+1415..." form (the sandbox number while testing), the SMS
+    # sender is a plain Twilio phone number in "+1415..." form.
+    twilio_account_sid: str | None = Field(default=None, alias="TWILIO_ACCOUNT_SID")
+    twilio_auth_token: str | None = Field(default=None, alias="TWILIO_AUTH_TOKEN")
+    twilio_whatsapp_from: str | None = Field(default=None, alias="TWILIO_WHATSAPP_FROM")
+    twilio_sms_from: str | None = Field(default=None, alias="TWILIO_SMS_FROM")
+
+    # Africa's Talking (USSD). They do not cryptographically sign webhooks, so
+    # USSD_WEBHOOK_SECRET is a shared secret WE choose and append as a query
+    # string on the callback URL registered in the AT dashboard
+    # (".../webhook/ussd?key=...") — checked on every inbound callback.
+    africastalking_username: str | None = Field(default=None, alias="AFRICASTALKING_USERNAME")
+    africastalking_api_key: str | None = Field(default=None, alias="AFRICASTALKING_API_KEY")
+    ussd_webhook_secret: str | None = Field(default=None, alias="USSD_WEBHOOK_SECRET")
+
+    # --- Dashboard chatbot ---------------------------------------------------
+    # Reuses ANTHROPIC_API_KEY above; no separate credential. Same cost-driven
+    # model default as scoring, override independently if needed.
+    chatbot_model: str = Field(default="claude-haiku-4-5", alias="CHATBOT_MODEL")
 
     # --- Voice-note transcription (Section 6 style: interface only) --------
     # "none" (default) => NotConfiguredTranscriptionProvider, fails loudly.
@@ -49,8 +80,20 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
     # True on serverless hosts (Vercel) so the DB engine uses NullPool.
     serverless: bool = Field(default=False, alias="SERVERLESS")
-    # Guards the one-shot /admin/init bootstrap endpoint (schema + seed).
+    # Guards the one-shot /admin/init bootstrap endpoint (schema + seed) and
+    # creating the FIRST programme admin account. Header only, never a URL.
     admin_token: str | None = Field(default=None, alias="ADMIN_TOKEN")
+    # Signs staff sign-in tokens. REQUIRED outside local dev (fail-closed).
+    # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
+    auth_secret: str | None = Field(default=None, alias="AUTH_SECRET")
+    # /admin/reset wipes every table, including the "immutable" audit log, so
+    # it is OFF unless explicitly enabled (demo hosts only, never production).
+    allow_data_reset: bool = Field(default=False, alias="ALLOW_DATA_RESET")
+    # Public base URL where item images are served (the dashboard's /items
+    # folder), used to attach pictures to WhatsApp questions.
+    media_base_url: str = Field(
+        default="https://kuza-identify-dashboard.vercel.app/items", alias="MEDIA_BASE_URL"
+    )
 
     @property
     def llm_enabled(self) -> bool:

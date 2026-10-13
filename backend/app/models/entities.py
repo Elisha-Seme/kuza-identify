@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -112,6 +113,15 @@ class ScreeningSession(Base):
         nullable=False,
     )
     # Cursor into the item bank so a dropped session can resume (Section 3.4).
+    # Hints requested for the item currently on screen; copied onto the
+    # ItemResponse when the learner answers, then reset.
+    pending_hints: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # Memory items on phone channels run in two steps: 0 = "look and remember"
+    # message sent, 1 = the question has been asked. Reset per item.
+    pending_stage: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    # After "pause", the next message only resumes the session (re-sends the
+    # current question); it is never recorded as an answer.
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     current_item_index: Mapped[int] = mapped_column(
         Integer, default=0, nullable=False
     )
@@ -137,6 +147,10 @@ class ItemResponse(Base):
     item_id: Mapped[str] = mapped_column(String(64), nullable=False)
     raw_response: Mapped[str] = mapped_column(Text, nullable=False)
     response_time_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Learning-velocity evidence: how many hints the learner asked for before
+    # answering, and whether they chose to skip (a skip is never scored as 0).
+    hints_used: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    skipped: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -346,5 +360,41 @@ class PortfolioSubmission(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     external_reference: Mapped[str | None] = mapped_column(String(512), nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class StaffUser(Base):
+    """A person who signs in to the staff side (reviewers, admins, auditors,
+    school staff). Not a learner record: email is a staff work address.
+    Passwords are stored only as a salted scrypt hash."""
+
+    __tablename__ = "staff_users"
+
+    id: Mapped[uuid.UUID] = _pk()
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[enums.StaffRole] = mapped_column(_enum(enums.StaffRole, "staff_role"), nullable=False)
+    # school_staff are scoped to one school; other roles leave this null.
+    school_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("schools.id"), nullable=True)
+    password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class ChannelBinding(Base):
+    """Which screening session a phone number is currently answering, per
+    channel. Replaces the old in-memory dicts, which were wiped on every
+    serverless cold start. The phone number is stored only as a SHA-256 hash
+    so this table holds no raw contact detail."""
+
+    __tablename__ = "channel_bindings"
+
+    phone_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    channel: Mapped[enums.Channel] = mapped_column(_enum(enums.Channel, "channel"), primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("screening_sessions.id"), nullable=False)
+    bound_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

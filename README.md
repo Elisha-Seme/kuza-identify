@@ -131,9 +131,65 @@ cd backend && pytest -q
 
 ---
 
-## The 5-domain item set
+## Access control and sections
 
-`backend/app/services/adaptive_item_engine/item_bank.json` holds a **placeholder**
+The dashboard is split by who each part is for. The server enforces this, not just the UI.
+
+| Section | Who | Sign-in |
+|---|---|---|
+| How it works, **Kuza Play**, Puzzle bank, Phone channels, Ask Kuza | Anyone | No (no learner data) |
+| Refer a learner (nomination, portfolio) | Parents, teachers | No, but rate-limited; a referral can only invite a screening |
+| Panel review | `reviewer`, `panel_lead` (decide); `programme_admin` (read) | Yes |
+| Run a session | `school_staff` (own school only), `panel_lead`, `programme_admin` | Yes |
+| Insights (funnel, fairness slices with <5 suppression, audit log) | `reviewer`, `panel_lead`, `programme_admin`, `auditor` (audit log: not reviewers) | Yes |
+| Admin (accounts, demo tools) | `programme_admin` | Yes |
+
+* Decisions are recorded under the **signed-in account**, never a name typed in the browser.
+* Phone-to-session binding, starting sessions and the demo screener need staff sign-in.
+* The unsigned JSON webhooks only exist while the provider is `mock`; USSD fails closed without `USSD_WEBHOOK_SECRET`.
+* `/admin/reset` is off unless `ALLOW_DATA_RESET=true` (it truncates the audit log). Admin tokens go in a header, never a URL.
+* Teacher/peer nominations no longer create a guardian `ConsentRecord`; only a parent's does.
+* Passwords: salted scrypt. Tokens: HMAC-signed, 12 h, re-checked against the account on every request (deactivation is immediate).
+
+Kuza Play also runs full-screen on its own at `/#/play` with none of the staff navigation, which is the link a child gets.
+
+## The question bank (v2): pictures, voice, drawing
+
+`backend/app/services/adaptive_item_engine/item_bank.json` is **generated** by
+`tools/item-bank/build.py`, which also draws every question picture (SVG + PNG for
+WhatsApp) into `dashboard/public/items/`. Edit items there and re-run:
+
+```bash
+pip install cairosvg && python3 tools/item-bank/build.py
+```
+
+* **31 puzzles**: 6 numeracy, 5 verbal, 6 pattern, 5 logic, 4 memory, 4 creativity, plus an unscored "what do you love doing?" warm-up.
+* **27 pictures**, culturally local (mangoes, shilling coins, mandazi, matatu chart, maize growing, a Kitendawili riddle, "Haba na haba" proverb).
+* Every item has a **plain-text version** (SMS/USSD/voice), a list of **answer modes** (tap, talk, type, put in order, draw, photo, hands-on), the **channels** it works on, and most have a **hint ladder**.
+* The child can say **skip / ruka**, **hint / dokezo**, **repeat / rudia**, **pause** on any channel. A skip is **not scored** (no zero); hints used are stored as learning-velocity evidence.
+* **Memory items** are two-step on phone channels (remember, then answer) and timed show/hide in Kuza Play, so the answer is never on screen with the question.
+* Exactly five items are `tier: core` (one per domain), so the automatic session still has the same shape. The rest (`pool`, `bonus_*`) are for Kuza Play, facilitators, and the next step: adaptive branching.
+* Fixed from v1: the Amina logic item's scorer guidance contradicted itself; the "rain is to farmer" analogy had two defensible answers; the working-memory item told a text-chat user "without looking back".
+* **Swahili wording is a first draft**: have a native-speaking teacher from the pilot schools review it before the pilot.
+
+## Deploying this version (once)
+
+1. In Vercel → **kuza-identify-api** → Environment Variables, add `AUTH_SECRET` (random, 64 hex chars) and make sure `ADMIN_TOKEN` is set. Redeploy.
+2. Create the new tables/columns on the existing database (also fixes the current `/panel/flagged` 500, which is a missing `portfolio_submissions` table):
+   `curl -X POST https://kuza-identify-api.vercel.app/admin/init -H "X-Admin-Token: $ADMIN_TOKEN"`
+   `GET /health` should then show `"missing_tables": []`.
+3. Create the first programme admin:
+   ```bash
+   curl -X POST https://kuza-identify-api.vercel.app/admin/bootstrap-admin \
+     -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
+     -d '{"email":"you@example.org","display_name":"Your Name","role":"programme_admin","password":"<10+ chars>"}'
+   ```
+   Then sign in on the dashboard → **Admin** → create reviewer / auditor / school staff accounts.
+4. Redeploy the dashboard (it ships the pictures under `/items`).
+
+## The 5-domain item set (v1 notes)
+
+Historical: v1 held a **placeholder**
 five-domain set (numerical / verbal / pattern / logical / working-memory), each
 item bilingual (en/sw) and phrased to degrade to plain text for USSD later (§3.4).
 **Swap this one file for the real prototype items** — nothing else needs to change.
